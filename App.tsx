@@ -11,6 +11,7 @@ import { Settings } from './pages/Settings.tsx';
 import { User } from './types.ts';
 
 // RainbowKit & Wagmi imports
+import '@rainbow-me/rainbowkit/styles.css';
 import { getDefaultConfig, RainbowKitProvider, darkTheme } from '@rainbow-me/rainbowkit';
 import { WagmiProvider } from 'wagmi';
 import { mainnet, polygon, optimism, arbitrum, base } from 'wagmi/chains';
