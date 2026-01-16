@@ -43,6 +43,8 @@ export type Domain = {
   records: DNSRecord[];
 };
 
+export type DomainSummary = Omit<Domain, 'records'>;
+
 export enum DeploymentStatus {
   QUEUED = 'QUEUED',
   BUILDING = 'BUILDING',
@@ -71,6 +73,8 @@ export type Site = {
   lastDeployedAt: string;
   deployments: Deployment[];
 };
+
+export type SiteSummary = Omit<Site, 'deployments'>;
 
 export type Order = {
   id: string;

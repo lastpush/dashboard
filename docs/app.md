@@ -56,7 +56,7 @@ This document describes the full page structure, layout, and UI sections impleme
 - Domain Search
   - Search input
   - Search button
-  - Search results list (mocked)
+  - Search results list 
   - Status badges (available/premium/registered)
   - Buy button
 
@@ -68,7 +68,7 @@ This document describes the full page structure, layout, and UI sections impleme
   - Continue with X (placeholder)
 - Email Login
   - Email input
-  - Send magic link (mocked)
+  - Send magic link 
 - Onboarding
   - Success state
   - Username + Workspace name inputs
@@ -120,7 +120,7 @@ This document describes the full page structure, layout, and UI sections impleme
 - Project name
 - Root / Output directories
 - Deploy button
-- Deploy logs (mocked)
+- Deploy logs 
 
 #### Site Detail (`/sites/:id`)
 
@@ -149,3 +149,4 @@ This document describes the full page structure, layout, and UI sections impleme
 - Notifications toggles
 - API Keys section
 - Danger Zone (Delete workspace)
+

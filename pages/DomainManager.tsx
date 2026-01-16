@@ -1,28 +1,18 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Save, Trash2, Globe, RefreshCcw, ShieldCheck, AlertCircle, ArrowRight } from 'lucide-react';
-import { Button, Input, Card, Badge } from '../components/ui/Common.tsx';
-import { Domain, DNSRecord } from '../types.ts';
-
-// Mock Data
-const MOCK_DOMAIN: Domain = {
-  name: 'example-project.com',
-  registrarStatus: 'Ok',
-  autoRenew: true,
-  expiresAt: '2025-11-24',
-  dnsMode: 'MANUAL',
-  sslStatus: 'ACTIVE',
-  records: [
-    { id: '1', type: 'A', name: '@', content: '76.76.21.21', ttl: 60, proxied: true },
-    { id: '2', type: 'CNAME', name: 'www', content: 'cname.lastpush.dev', ttl: 3600, proxied: true },
-    { id: '3', type: 'MX', name: '@', content: 'mail.protonmail.ch', ttl: 3600, proxied: false },
-  ]
-};
+import { ArrowLeft, Plus, Trash2, Globe, ShieldCheck, AlertCircle, ArrowRight } from 'lucide-react';
+import { Button, Card, Badge } from '../components/ui/Common.tsx';
+import { Domain, DNSRecord, DomainSummary } from '../types.ts';
+import { api } from '../api.ts';
 
 // --- Sub-component: DNS Editor ---
-const DNSEditor: React.FC<{ initialRecords: DNSRecord[] }> = ({ initialRecords }) => {
+const DNSEditor: React.FC<{ domainName: string; initialRecords: DNSRecord[] }> = ({ domainName, initialRecords }) => {
   const [records, setRecords] = useState(initialRecords);
   const [pendingChanges, setPendingChanges] = useState(false);
+
+  useEffect(() => {
+    setRecords(initialRecords);
+  }, [initialRecords]);
 
   const handleDelete = (id: string) => {
     setRecords(records.filter(r => r.id !== id));
@@ -33,9 +23,9 @@ const DNSEditor: React.FC<{ initialRecords: DNSRecord[] }> = ({ initialRecords }
     const newRecord: DNSRecord = {
       id: Math.random().toString(),
       type: 'A',
-      name: '@',
-      content: '1.1.1.1',
-      ttl: 3600,
+      name: '',
+      content: '',
+      ttl: 0,
       proxied: false
     };
     setRecords([...records, newRecord]);
@@ -43,11 +33,14 @@ const DNSEditor: React.FC<{ initialRecords: DNSRecord[] }> = ({ initialRecords }
   };
 
   const handleSave = () => {
-    // API Call
-    setTimeout(() => {
-      setPendingChanges(false);
-      alert("DNS Records Published Successfully!");
-    }, 500);
+    api.patch<{ records: DNSRecord[] }>(`/domains/${domainName}/dns/records`, {
+      records,
+    })
+      .then((res) => {
+        setRecords(res.records);
+        setPendingChanges(false);
+      })
+      .catch((err) => alert((err as Error).message));
   };
 
   return (
@@ -114,8 +107,15 @@ export const DomainDetail: React.FC = () => {
   const { name } = useParams();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'overview' | 'dns'>('overview');
+  const [domain, setDomain] = useState<Domain | null>(null);
 
   if (!name) return <div>Invalid domain</div>;
+
+  useEffect(() => {
+    api.get<Domain>(`/domains/${name}`)
+      .then(setDomain)
+      .catch(() => null);
+  }, [name]);
 
   return (
     <div className="space-y-6">
@@ -126,9 +126,12 @@ export const DomainDetail: React.FC = () => {
         <div>
           <h1 className="text-2xl font-bold text-white font-mono">{name}</h1>
           <div className="flex items-center gap-2 mt-1 text-sm text-zinc-500">
-            <span className="flex items-center gap-1 text-emerald-400"><ShieldCheck className="w-3 h-3" /> Active</span>
-            <span>•</span>
-            <span>Expires in 345 days</span>
+            <span className={`flex items-center gap-1 ${domain?.registrarStatus === 'Ok' ? 'text-emerald-400' : 'text-amber-400'}`}>
+              <ShieldCheck className="w-3 h-3" />
+              {domain?.registrarStatus === 'Ok' ? 'Active' : domain?.registrarStatus || 'Unknown'}
+            </span>
+            <span>/</span>
+            <span>Expires {domain?.expiresAt || '—'}</span>
           </div>
         </div>
       </div>
@@ -154,15 +157,7 @@ export const DomainDetail: React.FC = () => {
             <div className="space-y-4">
               <div className="flex justify-between py-2 border-b border-zinc-800/50">
                 <span className="text-zinc-500">Auto-renew</span>
-                <span className="text-white font-medium">On</span>
-              </div>
-              <div className="flex justify-between py-2 border-b border-zinc-800/50">
-                <span className="text-zinc-500">Registrar Lock</span>
-                <span className="text-white font-medium">Enabled</span>
-              </div>
-               <div className="flex justify-between py-2 border-b border-zinc-800/50">
-                <span className="text-zinc-500">Privacy Protection</span>
-                <span className="text-white font-medium">Enabled (Free)</span>
+                <span className="text-white font-medium">{domain?.autoRenew ? 'On' : 'Off'}</span>
               </div>
               <div className="pt-2">
                  <Button variant="outline" className="w-full">Manage Subscription</Button>
@@ -174,13 +169,15 @@ export const DomainDetail: React.FC = () => {
                <div className="w-16 h-16 rounded-full bg-emerald-500/10 flex items-center justify-center">
                  <ShieldCheck className="w-8 h-8 text-emerald-500" />
                </div>
-               <h3 className="text-white font-medium">Universal SSL Active</h3>
+               <h3 className="text-white font-medium">
+                 {domain?.sslStatus === 'ACTIVE' ? 'Universal SSL Active' : 'SSL Pending'}
+               </h3>
                <p className="text-zinc-500 text-center text-sm px-8">Your domain is automatically secured with a wildcard certificate.</p>
             </div>
           </Card>
         </div>
       ) : (
-        <DNSEditor initialRecords={MOCK_DOMAIN.records} />
+        <DNSEditor domainName={name} initialRecords={domain?.records || []} />
       )}
     </div>
   );
@@ -188,6 +185,14 @@ export const DomainDetail: React.FC = () => {
 
 // --- Page: Domain List ---
 export const DomainList: React.FC = () => {
+  const [domains, setDomains] = useState<DomainSummary[]>([]);
+
+  useEffect(() => {
+    api.get<{ items: DomainSummary[] }>('/domains')
+      .then((res) => setDomains(res.items))
+      .catch(() => null);
+  }, []);
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -196,29 +201,48 @@ export const DomainList: React.FC = () => {
           <Link to="/domains/search">
             <Button><Plus className="w-4 h-4 mr-2" /> Buy Domain</Button>
           </Link>
-          <Button variant="outline">Connect Existing</Button>
         </div>
       </div>
 
-      <div className="rounded-xl border border-zinc-800 overflow-hidden">
-        <div className="grid grid-cols-1 divide-y divide-zinc-800 bg-zinc-900/30">
-          {['example-project.com', 'my-startup.io', 'personal-blog.dev'].map(domain => (
-            <Link key={domain} to={`/domains/${domain}`} className="p-4 hover:bg-zinc-900/50 transition-colors flex items-center justify-between group">
-               <div className="flex items-center gap-4">
-                 <div className="p-2 bg-zinc-800 rounded-lg"><Globe className="w-5 h-5 text-zinc-400" /></div>
-                 <div>
-                   <div className="font-mono font-medium text-zinc-200">{domain}</div>
-                   <div className="text-xs text-zinc-500">Auto-renews Nov 2025</div>
-                 </div>
-               </div>
-               <div className="flex items-center gap-4">
-                 <Badge variant="success">Active</Badge>
-                 <ArrowRight className="w-4 h-4 text-zinc-600 group-hover:text-zinc-400" />
-               </div>
+      {domains.length === 0 ? (
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-8 text-center">
+          <div className="text-lg font-medium text-white mb-2">No domains yet</div>
+          <div className="text-sm text-zinc-500 mb-6">Buy a new domain to get started.</div>
+          <div className="flex items-center justify-center gap-3">
+            <Link to="/">
+              <Button>Buy Domain</Button>
             </Link>
-          ))}
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="rounded-xl border border-zinc-800 overflow-hidden">
+          <div className="grid grid-cols-1 divide-y divide-zinc-800 bg-zinc-900/30">
+            {domains.map(domain => {
+              const badgeVariant =
+                domain.registrarStatus === 'Ok' ? 'success' :
+                domain.registrarStatus === 'Pending' ? 'warning' : 'error';
+              const badgeLabel =
+                domain.registrarStatus === 'Ok' ? 'Active' :
+                domain.registrarStatus === 'Pending' ? 'Pending' : 'Hold';
+              return (
+              <Link key={domain.name} to={`/domains/${domain.name}`} className="p-4 hover:bg-zinc-900/50 transition-colors flex items-center justify-between group">
+                 <div className="flex items-center gap-4">
+                   <div className="p-2 bg-zinc-800 rounded-lg"><Globe className="w-5 h-5 text-zinc-400" /></div>
+                   <div>
+                     <div className="font-mono font-medium text-zinc-200">{domain.name}</div>
+                     <div className="text-xs text-zinc-500">Auto-renews {domain.expiresAt}</div>
+                   </div>
+                 </div>
+                 <div className="flex items-center gap-4">
+                   <Badge variant={badgeVariant}>{badgeLabel}</Badge>
+                   <ArrowRight className="w-4 h-4 text-zinc-600 group-hover:text-zinc-400" />
+                 </div>
+              </Link>
+            );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

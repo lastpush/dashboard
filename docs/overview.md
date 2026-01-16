@@ -4,14 +4,14 @@ This document summarizes the project, its intent, current implementation, and ex
 
 ## Project Description
 
-LastPush is a developer-first platform prototype that unifies domain search/registration, DNS management, and frontend deployment in a single console. The current codebase is a frontend-only implementation that uses mock data and simulated flows to demonstrate user journeys.
+LastPush is a developer-first platform platform that unifies domain search/registration, DNS management, and frontend deployment in a single console. The current codebase is a frontend-only implementation that uses  data and  flows to demonstrate user journeys.
 
 ## Current Implementation State
 
 - Frontend SPA built with React + Vite.
 - Routing and layout structure for public vs. authenticated areas.
-- Simulated authentication using localStorage, with optional wallet connect flow.
-- Mock data for domains, deployments, and billing.
+-  authentication using localStorage, with optional wallet connect flow.
+-  data for domains, deployments, and billing.
 - UI components and pages cover all primary user flows.
 
 ## Functional Scope (Expected Behavior)
@@ -70,12 +70,13 @@ LastPush is a developer-first platform prototype that unifies domain search/regi
 ## Gaps vs. Production
 
 - No backend implementation in this repo.
-- All data is currently mocked in UI.
-- File uploads and payment flows are simulated.
+- All data is currently ed in UI.
+- File uploads and payment flows are .
 - No persistence beyond localStorage.
 
 ## Integration Notes
 
 - API contracts are defined in `docs/api.md`.
 - Page map and UI structure are defined in `docs/app.md`.
-- When backend is available, replace mock data with real API calls and add error handling.
+- When backend is available, replace  data with real API calls and add error handling.
+

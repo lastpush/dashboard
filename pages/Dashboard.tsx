@@ -1,28 +1,75 @@
-import React from 'react';
-import { Card, Badge, Button } from '../components/ui/Common.tsx';
+import React, { useEffect, useState } from 'react';
+import { Card, Button } from '../components/ui/Common.tsx';
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { Link } from 'react-router-dom';
-import { ExternalLink, GitCommit, Globe, Clock, CreditCard } from 'lucide-react';
+import { GitCommit } from 'lucide-react';
+import { api } from '../api.ts';
+import { DomainSummary, Deployment, SiteSummary } from '../types.ts';
 
-const mockActivity = [
-  { name: 'Mon', deploys: 4 },
-  { name: 'Tue', deploys: 7 },
-  { name: 'Wed', deploys: 3 },
-  { name: 'Thu', deploys: 8 },
-  { name: 'Fri', deploys: 12 },
-  { name: 'Sat', deploys: 5 },
-  { name: 'Sun', deploys: 2 },
-];
+const buildWeek = () => {
+  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  return days.map((name) => ({ name, deploys: 0 }));
+};
 
 export const Dashboard: React.FC = () => {
+  const [sitesCount, setSitesCount] = useState(0);
+  const [domainsCount, setDomainsCount] = useState(0);
+  const [balance, setBalance] = useState(0);
+  const [activity, setActivity] = useState(buildWeek());
+  const [events, setEvents] = useState<{ title: string; desc: string; icon: React.ElementType }[]>([]);
+
+  useEffect(() => {
+    api.get<{ items: SiteSummary[] }>('/sites')
+      .then((res) => setSitesCount(res.items.length))
+      .catch(() => null);
+    api.get<{ items: DomainSummary[] }>('/domains')
+      .then((res) => setDomainsCount(res.items.length))
+      .catch(() => null);
+    api.get<{ balance: number }>('/billing/balance')
+      .then((res) => setBalance(res.balance))
+      .catch(() => null);
+
+    api.get<{ items: SiteSummary[] }>('/sites')
+      .then(async (res) => {
+        const deployments: Deployment[] = [];
+        await Promise.all(
+          res.items.map((site) =>
+            api.get<{ items: Deployment[] }>(`/sites/${site.id}/deployments`)
+              .then((d) => deployments.push(...d.items))
+              .catch(() => null)
+          )
+        );
+
+        const week = buildWeek();
+        deployments.forEach((dep) => {
+          const date = new Date(dep.createdAt);
+          const day = date.getDay();
+          const index = (day + 6) % 7;
+          week[index].deploys += 1;
+        });
+        setActivity(week);
+
+        const recent = deployments
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+          .slice(0, 3)
+          .map((dep) => ({
+            title: `Deployment ${dep.status}`,
+            desc: new Date(dep.createdAt).toLocaleString(),
+            icon: GitCommit,
+          }));
+        setEvents(recent);
+      })
+      .catch(() => null);
+  }, []);
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card title="Active Sites">
           <div className="flex justify-between items-end">
             <div>
-              <div className="text-3xl font-bold text-white">3</div>
-              <div className="text-sm text-zinc-500 mt-1">2 Live, 1 Building</div>
+              <div className="text-3xl font-bold text-white">{sitesCount}</div>
+              <div className="text-sm text-zinc-500 mt-1">Active projects</div>
             </div>
             <Link to="/sites/new"><Button size="sm" variant="outline">Deploy</Button></Link>
           </div>
@@ -30,8 +77,8 @@ export const Dashboard: React.FC = () => {
         <Card title="Domains">
           <div className="flex justify-between items-end">
              <div>
-              <div className="text-3xl font-bold text-white">12</div>
-              <div className="text-sm text-zinc-500 mt-1">1 Expiring soon</div>
+              <div className="text-3xl font-bold text-white">{domainsCount}</div>
+              <div className="text-sm text-zinc-500 mt-1">Connected domains</div>
             </div>
             <Link to="/domains/search"><Button size="sm" variant="outline">Buy</Button></Link>
           </div>
@@ -39,8 +86,8 @@ export const Dashboard: React.FC = () => {
         <Card title="Current Balance">
           <div className="flex justify-between items-end">
              <div>
-              <div className="text-3xl font-bold text-white">$42.50</div>
-              <div className="text-sm text-zinc-500 mt-1">Auto-topup off</div>
+              <div className="text-3xl font-bold text-white">${balance.toFixed(2)}</div>
+              <div className="text-sm text-zinc-500 mt-1">Wallet balance</div>
             </div>
             <Link to="/billing"><Button size="sm" variant="outline">Add Funds</Button></Link>
           </div>
@@ -52,7 +99,7 @@ export const Dashboard: React.FC = () => {
            <Card title="Deployment Activity (Last 7 Days)">
               <div className="h-64 mt-4">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={mockActivity}>
+                  <BarChart data={activity}>
                     <XAxis 
                       dataKey="name" 
                       stroke="#52525b" 
@@ -74,13 +121,12 @@ export const Dashboard: React.FC = () => {
         <div className="lg:col-span-1">
           <Card title="Recent Events">
             <div className="space-y-4">
-              {[
-                { title: 'Project X Deployed', desc: 'main branch • 2m ago', icon: GitCommit, status: 'success' },
-                { title: 'example.com Renewed', desc: 'Auto-renew • 4h ago', icon: Globe, status: 'info' },
-                { title: 'Payment Failed', desc: 'Card ending 4242', icon: CreditCard, status: 'error' },
-              ].map((item, i) => (
+              {events.length === 0 && (
+                <div className="text-xs text-zinc-500">No recent events.</div>
+              )}
+              {events.map((item, i) => (
                 <div key={i} className="flex items-start gap-3 p-3 rounded-lg hover:bg-zinc-800/50 transition-colors">
-                  <div className={`mt-1 p-1.5 rounded-md bg-zinc-800 text-zinc-400`}>
+                  <div className="mt-1 p-1.5 rounded-md bg-zinc-800 text-zinc-400">
                     <item.icon className="w-4 h-4" />
                   </div>
                   <div>

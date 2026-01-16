@@ -5,16 +5,20 @@ import { Mail, Twitter, ArrowRight, CheckCircle2, Wallet } from 'lucide-react';
 import { useAuth } from '../App.tsx';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useAccount, useSignMessage, useDisconnect } from 'wagmi';
+import { api } from '../api.ts';
+import { User } from '../types.ts';
 
 export const Login: React.FC = () => {
-  const { login } = useAuth();
+  const { setSession, updateUser } = useAuth();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const redirect = searchParams.get('redirect') || '/dashboard';
   
-  const [step, setStep] = useState<'methods' | 'email' | 'onboarding'>('methods');
+  const [step, setStep] = useState<'methods' | 'email' | 'emailVerify' | 'onboarding'>('methods');
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
+  const [challengeId, setChallengeId] = useState('');
+  const [code, setCode] = useState('');
 
   // Wagmi Hooks
   const { address, isConnected } = useAccount();
@@ -26,10 +30,17 @@ export const Login: React.FC = () => {
     const handleWalletAuth = async () => {
       if (isConnected && address && step === 'methods') {
         try {
-          // Signature Request
-          const message = `Login to LastPush: ${Math.floor(Math.random() * 1000000)}`;
-          await signMessageAsync({ message });
-          
+          const nonceRes = await api.post<{ nonce: string }>('/auth/login/wallet/nonce', {
+            address,
+            chainId: 1,
+          });
+          const signature = await signMessageAsync({ message: nonceRes.nonce });
+          const verify = await api.post<{ token: string; user: User }>('/auth/login/wallet/verify', {
+            address,
+            signature,
+            nonce: nonceRes.nonce,
+          });
+          setSession(verify.token, verify.user);
           setStep('onboarding');
         } catch (error) {
           console.error("User rejected signature", error);
@@ -46,27 +57,48 @@ export const Login: React.FC = () => {
     e.preventDefault();
     setLoading(true);
 
-    if (email === 'admin@admin.admin') {
+    try {
+      const res = await api.post<{ challengeId: string }>('/auth/login/email', {
+        email,
+        redirect,
+      });
+      setChallengeId(res.challengeId);
+      setStep('emailVerify');
+    } catch (err) {
+      alert((err as Error).message);
+    } finally {
       setLoading(false);
-      setStep('onboarding');
-      return;
     }
-
-    setTimeout(() => {
-       setLoading(false);
-       alert(`Magic link sent to ${email}. Click OK to simulate clicking the link.`);
-       setStep('onboarding');
-    }, 1000);
   };
 
-  const handleCompleteOnboarding = () => {
-    login({ 
-      id: address ? `eth_${address.slice(0,6)}` : 'usr_123', 
-      email: email || undefined, 
-      handle: email ? email.split('@')[0] : (address ? `0x${address.slice(2,8)}` : 'user'), 
-      balance: 100,
-      walletAddress: address
-    });
+  const handleVerifyEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const verify = await api.post<{ token: string; user: User }>('/auth/login/email/verify', {
+        challengeId,
+        code,
+      });
+      setSession(verify.token, verify.user);
+      setStep('onboarding');
+    } catch (err) {
+      alert((err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCompleteOnboarding = async () => {
+    try {
+      const desiredHandle =
+        email ? email.split('@')[0] : address ? `0x${address.slice(2, 8)}` : 'user';
+      const updated = await api.patch<User>('/users/me', {
+        handle: desiredHandle,
+      });
+      updateUser(updated);
+    } catch (err) {
+      console.error(err);
+    }
     navigate(redirect);
   };
 
@@ -173,7 +205,7 @@ export const Login: React.FC = () => {
             <Input 
               label="Email Address" 
               type="email" 
-              placeholder="dev@example.com" 
+              placeholder="user@yourdomain.com" 
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -186,15 +218,31 @@ export const Login: React.FC = () => {
           </form>
         )}
 
+        {step === 'emailVerify' && (
+          <form onSubmit={handleVerifyEmail} className="space-y-4">
+            <Input
+              label="Verification Code"
+              type="text"
+              placeholder="123456"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              required
+              autoFocus
+            />
+            <Button type="submit" className="w-full" isLoading={loading}>
+              {loading ? 'Verifying...' : 'Verify & Continue'}
+            </Button>
+            <Button type="button" variant="ghost" className="w-full" onClick={() => setStep('email')}>Back</Button>
+          </form>
+        )}
+
         {step === 'onboarding' && (
           <div className="space-y-6 animate-in fade-in zoom-in-95">
             <div className="flex justify-center">
               <CheckCircle2 className="w-16 h-16 text-emerald-500" />
             </div>
             <div className="text-center">
-              <h3 className="text-lg font-medium text-white">
-                {email === 'admin@admin.admin' ? 'Welcome Back, Admin' : 'Almost there'}
-              </h3>
+              <h3 className="text-lg font-medium text-white">Almost there</h3>
               <p className="text-zinc-500 text-sm">
                 {address ? `Wallet ${address.slice(0,6)}...${address.slice(-4)} connected.` : 'Confirm your details to finish setup.'}
               </p>
@@ -202,7 +250,6 @@ export const Login: React.FC = () => {
             <Input 
               label="Username" 
               defaultValue={
-                email === 'admin@admin.admin' ? 'admin' :
                 email ? email.split('@')[0] : 
                 address ? `0x${address.slice(2,8)}` : 'anon_dev'
               } 

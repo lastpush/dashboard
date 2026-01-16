@@ -27,7 +27,7 @@ Request (JSON)
 
 ```json
 {
-  "email": "dev@example.com",
+  "email": "user@yourdomain.com",
   "redirect": "/dashboard"
 }
 ```
@@ -60,7 +60,7 @@ Response 200
   "token": "jwt_or_session_token",
   "user": {
     "id": "usr_123",
-    "email": "dev@example.com",
+    "email": "user@yourdomain.com",
     "handle": "dev",
     "balance": 100.0
   }
@@ -126,7 +126,7 @@ Response 200
 ```json
 {
   "id": "usr_123",
-  "email": "dev@example.com",
+  "email": "user@yourdomain.com",
   "walletAddress": "0xabc...",
   "handle": "dev",
   "avatar": "https://...",
@@ -141,7 +141,7 @@ Request (JSON)
 ```json
 {
   "handle": "newhandle",
-  "email": "new@example.com",
+  "email": "user@yourdomain.com",
   "avatar": "https://..."
 }
 ```
@@ -151,7 +151,7 @@ Response 200
 ```json
 {
   "id": "usr_123",
-  "email": "new@example.com",
+  "email": "user@yourdomain.com",
   "handle": "newhandle",
   "avatar": "https://...",
   "balance": 100.0
@@ -197,7 +197,7 @@ Response 200
 {
   "items": [
     {
-      "name": "example.com",
+      "name": "your-domain.tld",
       "registrarStatus": "Ok",
       "autoRenew": true,
       "expiresAt": "2025-11-24",
@@ -217,7 +217,7 @@ Response 200
 
 ```json
 {
-  "name": "example.com",
+  "name": "your-domain.tld",
   "registrarStatus": "Ok",
   "autoRenew": true,
   "expiresAt": "2025-11-24",
@@ -242,7 +242,7 @@ Request (JSON)
 
 ```json
 {
-  "name": "example.com",
+  "name": "your-domain.tld",
   "years": 1,
   "autoRenew": true,
   "privacyProtection": true
@@ -264,7 +264,7 @@ Request (JSON)
 
 ```json
 {
-  "name": "example.com",
+  "name": "your-domain.tld",
   "registrar": "namecheap",
   "authCode": "transfer-code"
 }
@@ -293,7 +293,7 @@ Response 200
 
 ```json
 {
-  "name": "example.com",
+  "name": "your-domain.tld",
   "autoRenew": true
 }
 ```
@@ -321,7 +321,7 @@ Response 200
 
 ```json
 {
-  "name": "example.com",
+  "name": "your-domain.tld",
   "records": [
     {
       "id": "rec_1",
@@ -342,7 +342,7 @@ Response 202
 
 ```json
 {
-  "name": "example.com",
+  "name": "your-domain.tld",
   "sslStatus": "ISSUING"
 }
 ```
@@ -605,7 +605,7 @@ Response 200
     {
       "id": "txn_1",
       "date": "2023-10-24",
-      "description": "Domain Renewal (example.com)",
+      "description": "Domain Renewal (your-domain.tld)",
       "status": "PAID",
       "amount": -14.99,
       "currency": "USD",
@@ -788,3 +788,4 @@ Response 202
   "scheduledAt": "2026-01-21T00:00:00Z"
 }
 ```
+

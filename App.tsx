@@ -9,6 +9,7 @@ import { SiteList, SiteDetail, NewSite } from './pages/SiteManager.tsx';
 import { Billing } from './pages/Billing.tsx';
 import { Settings } from './pages/Settings.tsx';
 import { User } from './types.ts';
+import { api } from './api.ts';
 
 // RainbowKit & Wagmi imports
 import '@rainbow-me/rainbowkit/styles.css';
@@ -19,7 +20,7 @@ import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
 
 const config = getDefaultConfig({
   appName: 'LastPush',
-  projectId: '93e171735160a370b02444690462f48f', // Public project ID for testing
+  projectId: '93e171735160a370b02444690462f48f',
   chains: [mainnet, polygon, optimism, arbitrum, base],
   ssr: false,
 });
@@ -29,7 +30,10 @@ const queryClient = new QueryClient();
 // --- Auth Context ---
 interface AuthContextType {
   user: User | null;
-  login: (user: User) => void;
+  token: string | null;
+  loading: boolean;
+  setSession: (token: string, user: User) => void;
+  updateUser: (user: User) => void;
   logout: () => void;
 }
 
@@ -39,25 +43,54 @@ export const useAuth = () => useContext(AuthContext);
 
 const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Check for session (mock)
+  // Restore session and load current user
   useEffect(() => {
-    const stored = localStorage.getItem('lastpush_user');
-    if (stored) setUser(JSON.parse(stored));
+    const storedToken = localStorage.getItem('lastpush_token');
+    const storedUser = localStorage.getItem('lastpush_user');
+    if (storedToken) {
+      setToken(storedToken);
+      if (storedUser) setUser(JSON.parse(storedUser));
+      api.get<User>('/users/me')
+        .then((data) => {
+          setUser(data);
+          localStorage.setItem('lastpush_user', JSON.stringify(data));
+        })
+        .catch(() => {
+          setToken(null);
+          setUser(null);
+          localStorage.removeItem('lastpush_token');
+          localStorage.removeItem('lastpush_user');
+        })
+        .finally(() => setLoading(false));
+    } else {
+      setLoading(false);
+    }
   }, []);
 
-  const login = (userData: User) => {
+  const setSession = (sessionToken: string, userData: User) => {
+    setToken(sessionToken);
+    setUser(userData);
+    localStorage.setItem('lastpush_token', sessionToken);
+    localStorage.setItem('lastpush_user', JSON.stringify(userData));
+  };
+
+  const updateUser = (userData: User) => {
     setUser(userData);
     localStorage.setItem('lastpush_user', JSON.stringify(userData));
   };
 
   const logout = () => {
+    setToken(null);
     setUser(null);
+    localStorage.removeItem('lastpush_token');
     localStorage.removeItem('lastpush_user');
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={{ user, token, loading, setSession, updateUser, logout }}>
       {children}
     </AuthContext.Provider>
   );
@@ -65,7 +98,10 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 
 // --- Protected Route Wrapper ---
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  if (loading) {
+    return <div className="p-6 text-zinc-400">Loading...</div>;
+  }
   if (!user) {
     return <Navigate to="/login" replace />;
   }

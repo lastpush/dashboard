@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Check, X, Loader2, ShoppingCart } from 'lucide-react';
-import { Button, Input, Card, Badge } from '../components/ui/Common.tsx';
+import { Check, X, Loader2 } from 'lucide-react';
+import { Button, Input } from '../components/ui/Common.tsx';
 import { DomainStatus, DomainSearchResult } from '../types.ts';
+import { api } from '../api.ts';
 
 export const Home: React.FC = () => {
   const navigate = useNavigate();
@@ -14,17 +15,14 @@ export const Home: React.FC = () => {
     e.preventDefault();
     if (!query) return;
     setSearching(true);
-    
-    // Simulate API delay
-    setTimeout(() => {
-      setResults([
-        { name: `${query}.com`, status: DomainStatus.AVAILABLE, price: 12.99, renewalPrice: 14.99 },
-        { name: `${query}.io`, status: DomainStatus.PREMIUM, price: 49.99, renewalPrice: 49.99 },
-        { name: `${query}.dev`, status: DomainStatus.REGISTERED, price: 0, renewalPrice: 0 },
-        { name: `get${query}.com`, status: DomainStatus.AVAILABLE, price: 9.99, renewalPrice: 12.99 },
-      ]);
+    try {
+      const data = await api.get<{ results: DomainSearchResult[] }>(`/domains/search?q=${encodeURIComponent(query)}`);
+      setResults(data.results);
+    } catch (err) {
+      alert((err as Error).message);
+    } finally {
       setSearching(false);
-    }, 800);
+    }
   };
 
   const handleBuy = (domain: DomainSearchResult) => {
