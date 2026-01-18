@@ -9,22 +9,99 @@ import { api } from '../api.ts';
 export const NewSite: React.FC = () => {
   const navigate = useNavigate();
   const [file, setFile] = useState<File | null>(null);
+  const [sourceType, setSourceType] = useState<'file' | 'url'>('file');
+  const [bundleUrl, setBundleUrl] = useState('');
   const [deploying, setDeploying] = useState(false);
   const [logs, setLogs] = useState<string[]>([]);
   const [name, setName] = useState('');
-  const [rootDir, setRootDir] = useState('./');
-  const [outputDir, setOutputDir] = useState('dist');
+  const [defaultDomains, setDefaultDomains] = useState<string[]>([]);
+  const [domainChoice, setDomainChoice] = useState('default');
+  const [domainPrefix, setDomainPrefix] = useState('');
+  const [checkingDomain, setCheckingDomain] = useState(false);
+  const [domainAvailable, setDomainAvailable] = useState<boolean | null>(null);
+  const [domainCheckMessage, setDomainCheckMessage] = useState<string | null>(null);
+  const [recordLimit, setRecordLimit] = useState<number | null>(null);
+  const [recordUsed, setRecordUsed] = useState<number | null>(null);
+  const secondaryDomains = defaultDomains.slice(1);
+
+  useEffect(() => {
+    api.get<{ items: string[] }>('/domains/defaults')
+      .then((res) => setDefaultDomains(res.items))
+      .catch(() => null);
+  }, []);
+
+  useEffect(() => {
+    setDomainAvailable(null);
+    setDomainCheckMessage(null);
+    setRecordLimit(null);
+    setRecordUsed(null);
+  }, [domainChoice, domainPrefix]);
+
+  useEffect(() => {
+    setDomainAvailable(null);
+    setDomainCheckMessage(null);
+    setRecordLimit(null);
+    setRecordUsed(null);
+  }, [sourceType, bundleUrl]);
+
+  const handleCheckDomain = async () => {
+    if (!domainPrefix.trim()) return;
+    if (domainChoice !== 'default' && !domainChoice) return;
+    if (domainChoice === 'default' && defaultDomains.length === 0) return;
+
+    setCheckingDomain(true);
+    setDomainAvailable(null);
+    setDomainCheckMessage(null);
+    try {
+      const res = await api.post<{ available: boolean; message?: string; recordLimit?: number; recordUsed?: number }>('/domains/defaults/check', {
+        prefix: domainPrefix.trim(),
+        baseDomain: domainChoice === 'default' ? undefined : domainChoice,
+      });
+      setDomainAvailable(res.available);
+      setDomainCheckMessage(res.message || (res.available ? 'Available' : 'Unavailable'));
+      setRecordLimit(typeof res.recordLimit === 'number' ? res.recordLimit : null);
+      setRecordUsed(typeof res.recordUsed === 'number' ? res.recordUsed : null);
+    } catch (err) {
+      setDomainAvailable(false);
+      setDomainCheckMessage((err as Error).message);
+      setRecordLimit(null);
+      setRecordUsed(null);
+    } finally {
+      setCheckingDomain(false);
+    }
+  };
 
   const handleDeploy = async () => {
-    if (!file) return;
+    if (sourceType === 'file' && !file) return;
+    if (sourceType === 'url' && !bundleUrl.trim()) return;
     setDeploying(true);
     setLogs([]);
 
     const form = new FormData();
-    form.append('bundle', file);
-    form.append('name', name || file.name.replace(/\W+/g, '-').toLowerCase());
-    form.append('rootDir', rootDir);
-    form.append('outputDir', outputDir);
+    const derivedName = (() => {
+      if (name.trim()) return name.trim();
+      if (sourceType === 'file' && file) {
+        return file.name.replace(/\W+/g, '-').toLowerCase();
+      }
+      if (sourceType === 'url') {
+        const lastSegment = bundleUrl.trim().split('/').pop() || 'site';
+        const clean = lastSegment.replace(/\W+/g, '-').toLowerCase();
+        return clean || 'site';
+      }
+      return 'site';
+    })();
+
+    if (sourceType === 'file' && file) {
+      form.append('bundle', file);
+    }
+    if (sourceType === 'url') {
+      form.append('bundleUrl', bundleUrl.trim());
+    }
+    form.append('name', derivedName);
+    form.append('domainPrefix', domainPrefix.trim());
+    if (domainChoice !== 'default') {
+      form.append('baseDomain', domainChoice);
+    }
 
     try {
       const res = await api.upload<{ siteId: string; deploymentId: string }>('/sites', form);
@@ -47,34 +124,117 @@ export const NewSite: React.FC = () => {
 
       <Card>
         <div className="space-y-6">
-          <div className="border-2 border-dashed border-zinc-700 rounded-xl p-8 text-center hover:bg-zinc-800/30 transition-colors cursor-pointer relative">
-            <input 
-              type="file" 
-              className="absolute inset-0 opacity-0 cursor-pointer" 
-              onChange={(e) => setFile(e.target.files?.[0] || null)}
-              accept=".zip,.tar.gz"
-            />
-            <div className="flex flex-col items-center gap-3">
-              <div className="p-3 bg-indigo-500/10 rounded-full text-indigo-400">
-                {file ? <File className="w-8 h-8" /> : <UploadCloud className="w-8 h-8" />}
-              </div>
-              <div>
-                <p className="font-medium text-zinc-200">{file ? file.name : "Drag & drop your Output folder"}</p>
-                <p className="text-sm text-zinc-500 mt-1">{file ? `${(file.size / 1024).toFixed(1)} KB` : "Support for .zip, .dist folder"}</p>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant={sourceType === 'file' ? 'primary' : 'outline'}
+              onClick={() => setSourceType('file')}
+            >
+              Upload File
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={sourceType === 'url' ? 'primary' : 'outline'}
+              onClick={() => setSourceType('url')}
+            >
+              Use URL
+            </Button>
+          </div>
+
+          {sourceType === 'file' ? (
+            <div className="border-2 border-dashed border-zinc-700 rounded-xl p-8 text-center hover:bg-zinc-800/30 transition-colors cursor-pointer relative">
+              <input 
+                type="file" 
+                className="absolute inset-0 opacity-0 cursor-pointer" 
+                onChange={(e) => setFile(e.target.files?.[0] || null)}
+                accept=".zip,.tar.gz"
+              />
+              <div className="flex flex-col items-center gap-3">
+                <div className="p-3 bg-indigo-500/10 rounded-full text-indigo-400">
+                  {file ? <File className="w-8 h-8" /> : <UploadCloud className="w-8 h-8" />}
+                </div>
+                <div>
+                  <p className="font-medium text-zinc-200">{file ? file.name : "Drag & drop your bundle"}</p>
+                  <p className="text-sm text-zinc-500 mt-1">{file ? `${(file.size / 1024).toFixed(1)} KB` : "Support for .zip, .tar.gz"}</p>
+                </div>
               </div>
             </div>
-          </div>
+          ) : (
+            <Input
+              label="Bundle URL"
+              placeholder="https://example.com/build.zip"
+              value={bundleUrl}
+              onChange={(e) => setBundleUrl(e.target.value)}
+            />
+          )}
 
           <div className="space-y-4">
              <Input label="Project Name" placeholder="my-awesome-project" value={name} onChange={(e) => setName(e.target.value)} />
-             <div className="grid grid-cols-2 gap-4">
-               <Input label="Root Directory" placeholder="./" value={rootDir} onChange={(e) => setRootDir(e.target.value)} />
-               <Input label="Output Directory" placeholder="dist" value={outputDir} onChange={(e) => setOutputDir(e.target.value)} />
-             </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-zinc-400 mb-1.5">Domain</label>
+                <select
+                  className="flex h-10 w-full rounded-lg border border-zinc-700 bg-zinc-900/50 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all"
+                  value={domainChoice}
+                  onChange={(e) => setDomainChoice(e.target.value)}
+                >
+                  <option value="default">Default Domain</option>
+                  {secondaryDomains.map((domain) => (
+                    <option key={domain} value={domain}>{domain}</option>
+                  ))}
+                </select>
+                {domainChoice === 'default' && defaultDomains.length === 0 && (
+                  <div className="mt-2 text-xs text-amber-400">No default domains available.</div>
+                )}
+              </div>
+              <Input
+                label="Domain Prefix"
+                placeholder="my-site"
+                value={domainPrefix}
+                onChange={(e) => setDomainPrefix(e.target.value)}
+              />
+            </div>
+            <div className="flex items-center gap-3">
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={
+                  checkingDomain ||
+                  !domainPrefix.trim() ||
+                  (domainChoice === 'default' && defaultDomains.length === 0)
+                }
+                onClick={handleCheckDomain}
+              >
+                {checkingDomain ? 'Checking...' : 'Check Availability'}
+              </Button>
+              {domainCheckMessage && (
+                <span className={`text-sm ${domainAvailable ? 'text-emerald-400' : 'text-amber-400'}`}>
+                  {domainCheckMessage}
+                </span>
+              )}
+              {recordLimit !== null && recordUsed !== null && (
+                <span className="text-xs text-zinc-500">
+                  Remaining records: {Math.max(recordLimit - recordUsed, 0)} / {recordLimit}
+                </span>
+              )}
+            </div>
           </div>
 
           {!deploying ? (
-            <Button className="w-full h-12 text-base" disabled={!file} onClick={handleDeploy}>
+            <Button
+              className="w-full h-12 text-base"
+              disabled={
+                domainAvailable !== true ||
+                (recordLimit !== null && recordUsed !== null && recordLimit - recordUsed <= 0) ||
+                (sourceType === 'file' ? !file : !bundleUrl.trim())
+              }
+              onClick={handleDeploy}
+            >
               Deploy Now
             </Button>
           ) : (

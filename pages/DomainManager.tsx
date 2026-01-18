@@ -6,9 +6,11 @@ import { Domain, DNSRecord, DomainSummary } from '../types.ts';
 import { api } from '../api.ts';
 
 // --- Sub-component: DNS Editor ---
-const DNSEditor: React.FC<{ domainName: string; initialRecords: DNSRecord[] }> = ({ domainName, initialRecords }) => {
+const DNSEditor: React.FC<{ domainName: string; initialRecords: DNSRecord[]; recordLimit?: number }> = ({ domainName, initialRecords, recordLimit }) => {
   const [records, setRecords] = useState(initialRecords);
   const [pendingChanges, setPendingChanges] = useState(false);
+  const remainingRecords = recordLimit === undefined ? null : Math.max(recordLimit - records.length, 0);
+  const canAddRecord = recordLimit === undefined ? true : records.length < recordLimit;
 
   useEffect(() => {
     setRecords(initialRecords);
@@ -20,6 +22,7 @@ const DNSEditor: React.FC<{ domainName: string; initialRecords: DNSRecord[] }> =
   };
 
   const handleAdd = () => {
+    if (!canAddRecord) return;
     const newRecord: DNSRecord = {
       id: Math.random().toString(),
       type: 'A',
@@ -46,8 +49,17 @@ const DNSEditor: React.FC<{ domainName: string; initialRecords: DNSRecord[] }> =
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-medium text-white">DNS Management</h3>
-        <Button size="sm" onClick={handleAdd}><Plus className="w-4 h-4 mr-2" />Add Record</Button>
+        <div>
+          <h3 className="text-lg font-medium text-white">DNS Management</h3>
+          {remainingRecords !== null && (
+            <div className="text-xs text-zinc-500 mt-1">
+              Remaining records: {remainingRecords} / {recordLimit}
+            </div>
+          )}
+        </div>
+        <Button size="sm" onClick={handleAdd} disabled={!canAddRecord}>
+          <Plus className="w-4 h-4 mr-2" />Add Record
+        </Button>
       </div>
 
       <div className="overflow-x-auto rounded-lg border border-zinc-800">
@@ -177,7 +189,7 @@ export const DomainDetail: React.FC = () => {
           </Card>
         </div>
       ) : (
-        <DNSEditor domainName={name} initialRecords={domain?.records || []} />
+        <DNSEditor domainName={name} initialRecords={domain?.records || []} recordLimit={domain?.recordLimit} />
       )}
     </div>
   );

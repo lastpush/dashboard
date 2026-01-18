@@ -41,6 +41,8 @@ export type Domain = {
   dnsMode: 'AUTO' | 'MANUAL';
   sslStatus: 'ISSUING' | 'ACTIVE' | 'EXPIRED';
   records: DNSRecord[];
+  recordLimit?: number;
+  recordUsage?: number;
 };
 
 export type DomainSummary = Omit<Domain, 'records'>;
