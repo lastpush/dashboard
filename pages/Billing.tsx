@@ -2,6 +2,28 @@ import React, { useEffect, useState } from 'react';
 import { Card, Button, Badge } from '../components/ui/Common.tsx';
 import { CreditCard, Download } from 'lucide-react';
 import { api } from '../api.ts';
+import { ConnectButton } from '@rainbow-me/rainbowkit';
+import { useAccount, useSignMessage, useSwitchChain, useWriteContract } from 'wagmi';
+import { parseUnits } from 'viem';
+
+const erc20Abi = [
+  {
+    type: 'function',
+    name: 'transfer',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'to', type: 'address' },
+      { name: 'amount', type: 'uint256' },
+    ],
+    outputs: [{ name: '', type: 'bool' }],
+  },
+];
+
+const chainOptions = [
+  { id: 56, label: 'BSC' },
+  { id: 137, label: 'POLYGON' },
+  { id: 8453, label: 'BASE' },
+];
 
 export const Billing: React.FC = () => {
   const [topUpAmount, setTopUpAmount] = useState('10');
@@ -10,6 +32,16 @@ export const Billing: React.FC = () => {
   const [usage, setUsage] = useState({ bandwidthGB: 0, bandwidthLimitGB: 0, buildMinutes: 0, buildMinutesLimit: 0 });
   const [transactions, setTransactions] = useState<{ id: string; date: string; description: string; status: string; amount: number; invoiceUrl?: string }[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<{ id: string; brand: string; last4: string; expiresAt: string }[]>([]);
+  const [showTopUp, setShowTopUp] = useState(false);
+  const [selectedChainId, setSelectedChainId] = useState<number | null>(null);
+  const [paymentInfo, setPaymentInfo] = useState<{ paymentId: string; depositAddress: string; tokenAddress: string; decimals: number } | null>(null);
+  const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
+  const [loadingPayment, setLoadingPayment] = useState(false);
+
+  const { address, isConnected, chainId } = useAccount();
+  const { switchChainAsync } = useSwitchChain();
+  const { signMessageAsync } = useSignMessage();
+  const { writeContractAsync } = useWriteContract();
 
   useEffect(() => {
     api.get<{ balance: number }>('/billing/balance')
@@ -26,18 +58,93 @@ export const Billing: React.FC = () => {
       .catch(() => null);
   }, []);
 
-  const handleTopUp = () => {
-    setIsProcessing(true);
-    api.post<{ redirectUrl: string }>('/billing/top-up', {
-      amount: Number(topUpAmount),
-      method: 'CRYPTO',
-    })
-      .then((res) => {
-        if (res.redirectUrl) {
-          window.location.href = res.redirectUrl;
+  const handleOpenTopUp = () => {
+    setShowTopUp(true);
+    setSelectedChainId(null);
+    setPaymentInfo(null);
+    setPaymentStatus(null);
+  };
+
+  const handleSelectChain = async (id: number) => {
+    if (selectedChainId === id && paymentInfo) return;
+    setSelectedChainId(id);
+    setPaymentInfo(null);
+    setPaymentStatus(null);
+    if (isConnected && chainId !== id) {
+      try {
+        await switchChainAsync({ chainId: id });
+      } catch {
+        // ignore
+      }
+    }
+
+    setLoadingPayment(true);
+    setPaymentStatus(null);
+    try {
+      const res = await api.post<{ paymentId: string; depositAddress: string; tokenAddress: string; decimals: number }>(
+        '/billing/top-up/crypto/init',
+        {
+          amount: Number(topUpAmount),
+          chainId: id,
+          token: 'USDT',
         }
-      })
-      .finally(() => setIsProcessing(false));
+      );
+      setPaymentInfo(res);
+    } catch (err) {
+      setPaymentStatus((err as Error).message);
+    } finally {
+      setLoadingPayment(false);
+    }
+  };
+
+  const handleSendTransfer = async () => {
+    if (!paymentInfo || !address || !selectedChainId) return;
+    setIsProcessing(true);
+    setPaymentStatus(null);
+    try {
+      if (chainId !== selectedChainId) {
+        await switchChainAsync({ chainId: selectedChainId });
+      }
+      const amount = parseUnits(topUpAmount, paymentInfo.decimals);
+      const txHash = await writeContractAsync({
+        address: paymentInfo.tokenAddress as `0x${string}`,
+        abi: erc20Abi,
+        functionName: 'transfer',
+        args: [paymentInfo.depositAddress as `0x${string}`, amount],
+      });
+
+      const message = [
+        'LastPush TopUp',
+        `paymentId:${paymentInfo.paymentId}`,
+        `chainId:${selectedChainId}`,
+        `from:${address}`,
+        `to:${paymentInfo.depositAddress}`,
+        `token:${paymentInfo.tokenAddress}`,
+        `amount:${topUpAmount}`,
+        `txHash:${txHash}`,
+      ].join('\n');
+
+      const signature = await signMessageAsync({ message });
+
+      await api.post('/billing/top-up/crypto/confirm', {
+        paymentId: paymentInfo.paymentId,
+        chainId: selectedChainId,
+        from: address,
+        to: paymentInfo.depositAddress,
+        tokenAddress: paymentInfo.tokenAddress,
+        amount: Number(topUpAmount),
+        txHash,
+        signature,
+        message,
+      });
+
+      setPaymentStatus('Payment submitted.');
+      setShowTopUp(false);
+    } catch (err) {
+      setPaymentStatus((err as Error).message);
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   return (
@@ -61,7 +168,7 @@ export const Billing: React.FC = () => {
                ))}
              </div>
              <div className="mt-4 pt-4 border-t border-zinc-800/50">
-               <Button className="w-full" onClick={handleTopUp} isLoading={isProcessing}>Add Funds (${topUpAmount})</Button>
+               <Button className="w-full" onClick={handleOpenTopUp} isLoading={isProcessing}>Add Funds (${topUpAmount})</Button>
              </div>
           </div>
         </Card>
@@ -144,6 +251,75 @@ export const Billing: React.FC = () => {
           </table>
         </div>
       </div>
+
+      {showTopUp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/70 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-white">Add Funds via USDT</h3>
+              <button
+                className="text-zinc-500 hover:text-zinc-200"
+                onClick={() => setShowTopUp(false)}
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <div className="text-xs font-medium text-zinc-400 mb-2">Connect Wallet</div>
+                <ConnectButton />
+              </div>
+
+              <div>
+                <div className="text-xs font-medium text-zinc-400 mb-2">Select Chain</div>
+                <div className="flex flex-wrap gap-2">
+                  {chainOptions.map((chain) => (
+                    <Button
+                      key={chain.id}
+                      size="sm"
+                      variant={selectedChainId === chain.id ? 'primary' : 'outline'}
+                      onClick={() => handleSelectChain(chain.id)}
+                    >
+                      {chain.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                {loadingPayment && <span className="text-xs text-zinc-500">Loading payment address...</span>}
+                {paymentInfo && (
+                  <span className="text-xs text-zinc-500">Deposit: {paymentInfo.depositAddress}</span>
+                )}
+              </div>
+
+              {paymentInfo && (
+                <div className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-4 text-sm text-zinc-400 space-y-2">
+                  <div>Token: USDT</div>
+                  <div>Amount: ${topUpAmount}</div>
+                  <div>Network: {chainOptions.find((c) => c.id === selectedChainId)?.label}</div>
+                </div>
+              )}
+
+              {paymentStatus && (
+                <div className="text-xs text-amber-400">{paymentStatus}</div>
+              )}
+
+              <div className="flex items-center gap-3">
+                <Button
+                  className="w-full"
+                  disabled={!isConnected || !paymentInfo}
+                  isLoading={isProcessing}
+                  onClick={handleSendTransfer}
+                >
+                  Send USDT
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
