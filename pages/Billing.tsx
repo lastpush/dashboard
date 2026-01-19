@@ -5,6 +5,7 @@ import { api } from '../api.ts';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useAccount, useSignMessage, useSwitchChain, useWriteContract } from 'wagmi';
 import { parseUnits } from 'viem';
+import { useSearchParams } from 'react-router-dom';
 
 const erc20Abi = [
   {
@@ -26,6 +27,7 @@ const chainOptions = [
 ];
 
 export const Billing: React.FC = () => {
+  const [searchParams] = useSearchParams();
   const [topUpAmount, setTopUpAmount] = useState('10');
   const [isProcessing, setIsProcessing] = useState(false);
   const [balance, setBalance] = useState(0);
@@ -57,6 +59,30 @@ export const Billing: React.FC = () => {
       .then((res) => setPaymentMethods(res.items))
       .catch(() => null);
   }, []);
+
+  useEffect(() => {
+    if (searchParams.get('topup') === '1') {
+      setShowTopUp(true);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (!showTopUp) return;
+    if (!isConnected || !chainId) {
+      setSelectedChainId(null);
+      setPaymentInfo(null);
+      return;
+    }
+    const supported = chainOptions.some((c) => c.id === chainId);
+    if (!supported) {
+      setSelectedChainId(null);
+      setPaymentInfo(null);
+      return;
+    }
+    if (selectedChainId !== chainId) {
+      handleSelectChain(chainId);
+    }
+  }, [showTopUp, isConnected, chainId, selectedChainId]);
 
   const handleOpenTopUp = () => {
     setShowTopUp(true);

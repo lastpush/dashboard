@@ -4,9 +4,11 @@ import { Check, X, Loader2 } from 'lucide-react';
 import { Button, Input } from '../components/ui/Common.tsx';
 import { DomainStatus, DomainSearchResult } from '../types.ts';
 import { api } from '../api.ts';
+import { useAuth } from '../App.tsx';
 
 export const Home: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [query, setQuery] = useState('');
   const [searching, setSearching] = useState(false);
   const [results, setResults] = useState<DomainSearchResult[] | null>(null);
@@ -26,8 +28,12 @@ export const Home: React.FC = () => {
   };
 
   const handleBuy = (domain: DomainSearchResult) => {
-    // Force Login flow
-    navigate(`/login?redirect=/orders/new&domain=${domain.name}&price=${domain.price}`);
+    const orderPath = `/orders/new?domain=${encodeURIComponent(domain.name)}&price=${encodeURIComponent(String(domain.price))}`;
+    if (user) {
+      navigate(orderPath);
+      return;
+    }
+    navigate(`/login?redirect=${encodeURIComponent(orderPath)}`);
   };
 
   return (

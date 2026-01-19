@@ -8,6 +8,7 @@ import { DomainList, DomainDetail } from './pages/DomainManager.tsx';
 import { SiteList, SiteDetail, NewSite } from './pages/SiteManager.tsx';
 import { Billing } from './pages/Billing.tsx';
 import { Settings } from './pages/Settings.tsx';
+import { OrderNew } from './pages/OrderNew.tsx';
 import { User } from './types.ts';
 import { api } from './api.ts';
 
@@ -134,6 +135,7 @@ const App: React.FC = () => {
                   
                   <Route path="/billing" element={<ProtectedRoute><Billing /></ProtectedRoute>} />
                   <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+                  <Route path="/orders/new" element={<ProtectedRoute><OrderNew /></ProtectedRoute>} />
                   
                   {/* Fallback */}
                   <Route path="*" element={<Navigate to="/" />} />
