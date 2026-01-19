@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Trash2, Globe, ShieldCheck, AlertCircle, ArrowRight } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Globe, ShieldCheck, ArrowRight } from 'lucide-react';
 import { Button, Card, Badge } from '../components/ui/Common.tsx';
 import { Domain, DNSRecord, DomainSummary } from '../types.ts';
 import { api } from '../api.ts';
@@ -8,42 +8,119 @@ import { api } from '../api.ts';
 // --- Sub-component: DNS Editor ---
 const DNSEditor: React.FC<{ domainName: string; initialRecords: DNSRecord[]; recordLimit?: number }> = ({ domainName, initialRecords, recordLimit }) => {
   const [records, setRecords] = useState(initialRecords);
-  const [pendingChanges, setPendingChanges] = useState(false);
+  const [dirtyIds, setDirtyIds] = useState<Set<string>>(new Set());
+  const [savingIds, setSavingIds] = useState<Set<string>>(new Set());
+  const [newRecordId, setNewRecordId] = useState<string | null>(null);
   const remainingRecords = recordLimit === undefined ? null : Math.max(recordLimit - records.length, 0);
   const canAddRecord = recordLimit === undefined ? true : records.length < recordLimit;
 
   useEffect(() => {
     setRecords(initialRecords);
+    setDirtyIds(new Set());
+    setSavingIds(new Set());
+    setNewRecordId(null);
   }, [initialRecords]);
 
-  const handleDelete = (id: string) => {
-    setRecords(records.filter(r => r.id !== id));
-    setPendingChanges(true);
+  const markDirty = (id: string) => {
+    setDirtyIds((prev) => {
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
+  };
+
+  const clearDirty = (id: string) => {
+    setDirtyIds((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  };
+
+  const markSaving = (id: string, saving: boolean) => {
+    setSavingIds((prev) => {
+      const next = new Set(prev);
+      if (saving) {
+        next.add(id);
+      } else {
+        next.delete(id);
+      }
+      return next;
+    });
+  };
+
+  const handleDelete = async (id: string) => {
+    if (newRecordId && id === newRecordId) {
+      setRecords((prev) => prev.filter((r) => r.id !== id));
+      setNewRecordId(null);
+      clearDirty(id);
+      return;
+    }
+    markSaving(id, true);
+    try {
+      await api.del(`/domains/${domainName}/dns/records/${id}`);
+      setRecords((prev) => prev.filter((r) => r.id !== id));
+      clearDirty(id);
+    } catch (err) {
+      alert((err as Error).message);
+    } finally {
+      markSaving(id, false);
+    }
+  };
+
+  const handleUpdate = <K extends keyof DNSRecord>(id: string, key: K, value: DNSRecord[K]) => {
+    setRecords((prev) =>
+      prev.map((record) => (record.id === id ? { ...record, [key]: value } : record))
+    );
+    markDirty(id);
   };
 
   const handleAdd = () => {
-    if (!canAddRecord) return;
+    if (!canAddRecord || newRecordId) return;
+    const tempId = `new-${Date.now()}`;
     const newRecord: DNSRecord = {
-      id: Math.random().toString(),
+      id: tempId,
       type: 'A',
       name: '',
       content: '',
-      ttl: 0,
+      ttl: 60,
       proxied: false
     };
     setRecords([...records, newRecord]);
-    setPendingChanges(true);
+    setNewRecordId(tempId);
+    markDirty(tempId);
   };
 
-  const handleSave = () => {
-    api.patch<{ records: DNSRecord[] }>(`/domains/${domainName}/dns/records`, {
-      records,
-    })
-      .then((res) => {
-        setRecords(res.records);
-        setPendingChanges(false);
-      })
-      .catch((err) => alert((err as Error).message));
+  const handleSave = async (record: DNSRecord) => {
+    markSaving(record.id, true);
+    try {
+      if (newRecordId && record.id === newRecordId) {
+        const created = await api.post<DNSRecord>(`/domains/${domainName}/dns/records`, {
+          type: record.type,
+          name: record.name,
+          content: record.content,
+          ttl: record.ttl,
+          proxied: record.proxied,
+        });
+        setRecords((prev) => prev.map((r) => (r.id === record.id ? created : r)));
+        clearDirty(record.id);
+        setNewRecordId(null);
+      } else {
+        const updated = await api.patch<DNSRecord>(`/domains/${domainName}/dns/records/${record.id}`, {
+          type: record.type,
+          name: record.name,
+          content: record.content,
+          ttl: record.ttl,
+          proxied: record.proxied,
+        });
+        setRecords((prev) => prev.map((r) => (r.id === record.id ? updated : r)));
+        clearDirty(record.id);
+      }
+    } catch (err) {
+      alert((err as Error).message);
+    } finally {
+      markSaving(record.id, false);
+    }
   };
 
   return (
@@ -57,7 +134,7 @@ const DNSEditor: React.FC<{ domainName: string; initialRecords: DNSRecord[]; rec
             </div>
           )}
         </div>
-        <Button size="sm" onClick={handleAdd} disabled={!canAddRecord}>
+        <Button size="sm" onClick={handleAdd} disabled={!canAddRecord || !!newRecordId}>
           <Plus className="w-4 h-4 mr-2" />Add Record
         </Button>
       </div>
@@ -77,17 +154,67 @@ const DNSEditor: React.FC<{ domainName: string; initialRecords: DNSRecord[]; rec
           <tbody className="divide-y divide-zinc-800 bg-zinc-900/30">
             {records.map((rec) => (
               <tr key={rec.id} className="hover:bg-zinc-900/50">
-                <td className="px-4 py-3 font-mono text-indigo-400 font-bold">{rec.type}</td>
-                <td className="px-4 py-3 font-mono text-zinc-300">{rec.name}</td>
-                <td className="px-4 py-3 font-mono text-zinc-300 truncate max-w-xs">{rec.content}</td>
-                <td className="px-4 py-3">{rec.ttl}</td>
                 <td className="px-4 py-3">
-                  {rec.proxied ? <Badge variant="warning">Proxied</Badge> : <Badge variant="neutral">DNS Only</Badge>}
+                  <select
+                    className="h-9 w-full rounded-lg border border-zinc-700 bg-zinc-900/70 px-2 text-xs text-zinc-200"
+                    value={rec.type}
+                    onChange={(e) => handleUpdate(rec.id, 'type', e.target.value as DNSRecord['type'])}
+                  >
+                    {['A', 'CNAME', 'TXT', 'MX', 'URI'].map((type) => (
+                      <option key={type} value={type}>{type}</option>
+                    ))}
+                  </select>
+                </td>
+                <td className="px-4 py-3">
+                  <input
+                    className="h-9 w-full rounded-lg border border-zinc-700 bg-zinc-900/70 px-3 text-xs text-zinc-200 font-mono"
+                    value={rec.name}
+                    onChange={(e) => handleUpdate(rec.id, 'name', e.target.value)}
+                    placeholder="@"
+                  />
+                </td>
+                <td className="px-4 py-3">
+                  <input
+                    className="h-9 w-full rounded-lg border border-zinc-700 bg-zinc-900/70 px-3 text-xs text-zinc-200 font-mono"
+                    value={rec.content}
+                    onChange={(e) => handleUpdate(rec.id, 'content', e.target.value)}
+                    placeholder={rec.type === 'MX' ? 'priority mail.example.com' : rec.type === 'URI' ? 'priority weight target' : ''}
+                  />
+                </td>
+                <td className="px-4 py-3">
+                  <input
+                    className="h-9 w-20 rounded-lg border border-zinc-700 bg-zinc-900/70 px-2 text-xs text-zinc-200"
+                    type="number"
+                    min={0}
+                    value={rec.ttl}
+                    onChange={(e) => handleUpdate(rec.id, 'ttl', Number(e.target.value))}
+                  />
+                </td>
+                <td className="px-4 py-3">
+                  <label className="flex items-center gap-2 text-xs text-zinc-500">
+                    <input
+                      type="checkbox"
+                      className="accent-indigo-500"
+                      checked={rec.proxied}
+                      onChange={(e) => handleUpdate(rec.id, 'proxied', e.target.checked)}
+                    />
+                    {rec.proxied ? <Badge variant="warning">Proxied</Badge> : <Badge variant="neutral">DNS Only</Badge>}
+                  </label>
                 </td>
                 <td className="px-4 py-3 text-right">
-                  <button onClick={() => handleDelete(rec.id)} className="text-zinc-600 hover:text-red-400">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center justify-end gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={!dirtyIds.has(rec.id) || savingIds.has(rec.id)}
+                      onClick={() => handleSave(rec)}
+                    >
+                      {savingIds.has(rec.id) ? 'Saving...' : 'Save'}
+                    </Button>
+                    <button onClick={() => handleDelete(rec.id)} className="text-zinc-600 hover:text-red-400" disabled={savingIds.has(rec.id)}>
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -95,21 +222,6 @@ const DNSEditor: React.FC<{ domainName: string; initialRecords: DNSRecord[]; rec
         </table>
         {records.length === 0 && <div className="p-8 text-center text-zinc-500">No records found.</div>}
       </div>
-
-      {pendingChanges && (
-        <div className="fixed bottom-6 right-6 z-50 animate-in slide-in-from-bottom-5">
-          <div className="bg-zinc-900 border border-zinc-700 shadow-2xl p-4 rounded-xl flex items-center gap-4">
-             <div className="flex items-center gap-2 text-amber-400">
-               <AlertCircle className="w-5 h-5" />
-               <span className="font-medium text-sm">Unsaved changes</span>
-             </div>
-             <div className="flex gap-2">
-               <Button size="sm" variant="ghost" onClick={() => setPendingChanges(false)}>Reset</Button>
-               <Button size="sm" onClick={handleSave}>Publish Changes</Button>
-             </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

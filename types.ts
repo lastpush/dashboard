@@ -26,7 +26,7 @@ export type DomainSearchResult = {
 
 export type DNSRecord = {
   id: string;
-  type: 'A' | 'AAAA' | 'CNAME' | 'TXT' | 'MX' | 'SRV' | 'CAA';
+  type: 'A' | 'AAAA' | 'CNAME' | 'TXT' | 'MX' | 'SRV' | 'CAA' | 'URI';
   name: string;
   content: string;
   ttl: number;
