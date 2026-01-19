@@ -10,6 +10,7 @@ import { Billing } from './pages/Billing.tsx';
 import { Settings } from './pages/Settings.tsx';
 import { OrderNew } from './pages/OrderNew.tsx';
 import { OrderDetail } from './pages/OrderDetail.tsx';
+import { Orders } from './pages/Orders.tsx';
 import { User } from './types.ts';
 import { api } from './api.ts';
 
@@ -138,6 +139,7 @@ const App: React.FC = () => {
                   <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
                   <Route path="/orders/new" element={<ProtectedRoute><OrderNew /></ProtectedRoute>} />
                   <Route path="/orders/:id" element={<ProtectedRoute><OrderDetail /></ProtectedRoute>} />
+                  <Route path="/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
                   
                   {/* Fallback */}
                   <Route path="*" element={<Navigate to="/" />} />

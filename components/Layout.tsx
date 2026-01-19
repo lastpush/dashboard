@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, Globe, Server, CreditCard, Settings, 
   LogOut, Plus, Search, Terminal, Wallet, HelpCircle,
-  Menu, X
+  Menu, X, ShoppingBag
 } from 'lucide-react';
 import { useAuth } from '../App.tsx';
 import { Button } from './ui/Common.tsx';
@@ -19,6 +19,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const navItems = [
     { icon: LayoutDashboard, label: 'Overview', path: '/dashboard' },
     { icon: Globe, label: 'Domains', path: '/domains' },
+    { icon: ShoppingBag, label: 'Orders', path: '/orders' },
     { icon: Server, label: 'Sites', path: '/sites' },
     { icon: CreditCard, label: 'Billing', path: '/billing' },
     { icon: Settings, label: 'Settings', path: '/settings' },
