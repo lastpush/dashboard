@@ -32,13 +32,13 @@ export const OrderNew: React.FC = () => {
     setSubmitting(true);
     setError(null);
     try {
-      await api.post('/domains', {
+      const res = await api.post<{ orderId: string }>('/domains', {
         name: domain,
         years: 1,
         autoRenew: true,
         privacyProtection: true,
       });
-      navigate('/domains');
+      navigate(`/orders/${res.orderId}`);
     } catch (err) {
       setError((err as Error).message);
     } finally {

@@ -85,4 +85,5 @@ export type Order = {
   amount: number;
   status: 'CREATED' | 'PENDING_PAYMENT' | 'PAID' | 'PROVISIONING' | 'COMPLETED' | 'FAILED';
   createdAt: string;
+  fulfillmentStatus?: 'PURCHASING' | 'PURCHASED' | 'CLOUDFLARE_PENDING' | 'ONLINE' | 'FAILED';
 };
