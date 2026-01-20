@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { UploadCloud, File, Globe, Clock, CheckCircle, Plus } from 'lucide-react';
 import { Button, Input, Card, Badge } from '../components/ui/Common.tsx';
-import { Deployment, Site, SiteSummary } from '../types.ts';
+import { Deployment, Site, SiteSummary, DomainSummary } from '../types.ts';
 import { api } from '../api.ts';
 import { useI18n } from '../i18n.tsx';
 
@@ -10,13 +10,16 @@ import { useI18n } from '../i18n.tsx';
 export const NewSite: React.FC = () => {
   const navigate = useNavigate();
   const { t } = useI18n();
+  const maxBundleSize = 50 * 1024 * 1024;
+  const allowedExtensions = ['.zip', '.tar.gz', '.7z', '.rar'];
   const [file, setFile] = useState<File | null>(null);
-  const [sourceType, setSourceType] = useState<'file' | 'url'>('file');
-  const [bundleUrl, setBundleUrl] = useState('');
   const [deploying, setDeploying] = useState(false);
+  const [deployStatus, setDeployStatus] = useState<'upload' | 'building' | 'success'>('upload');
+  const [deployedSiteId, setDeployedSiteId] = useState<string | null>(null);
   const [logs, setLogs] = useState<string[]>([]);
   const [name, setName] = useState('');
   const [defaultDomains, setDefaultDomains] = useState<string[]>([]);
+  const [userDomains, setUserDomains] = useState<string[]>([]);
   const [domainChoice, setDomainChoice] = useState('default');
   const [domainPrefix, setDomainPrefix] = useState('');
   const [checkingDomain, setCheckingDomain] = useState(false);
@@ -25,10 +28,20 @@ export const NewSite: React.FC = () => {
   const [recordLimit, setRecordLimit] = useState<number | null>(null);
   const [recordUsed, setRecordUsed] = useState<number | null>(null);
   const secondaryDomains = defaultDomains.slice(1);
+  const selectableDomains = useMemo(() => {
+    const items = [...secondaryDomains, ...userDomains];
+    return Array.from(new Set(items.filter(Boolean)));
+  }, [secondaryDomains, userDomains]);
 
   useEffect(() => {
     api.get<{ items: string[] }>('/domains/defaults')
       .then((res) => setDefaultDomains(res.items))
+      .catch(() => null);
+  }, []);
+
+  useEffect(() => {
+    api.get<{ items: DomainSummary[] }>('/domains')
+      .then((res) => setUserDomains(res.items.map((domain) => domain.name)))
       .catch(() => null);
   }, []);
 
@@ -40,11 +53,11 @@ export const NewSite: React.FC = () => {
   }, [domainChoice, domainPrefix]);
 
   useEffect(() => {
-    setDomainAvailable(null);
-    setDomainCheckMessage(null);
-    setRecordLimit(null);
-    setRecordUsed(null);
-  }, [sourceType, bundleUrl]);
+    if (deployStatus === 'success') {
+      setDeployStatus('upload');
+      setDeployedSiteId(null);
+    }
+  }, [file, name, domainChoice, domainPrefix, deployStatus]);
 
   const handleCheckDomain = async () => {
     if (!domainPrefix.trim()) return;
@@ -74,30 +87,23 @@ export const NewSite: React.FC = () => {
   };
 
   const handleDeploy = async () => {
-    if (sourceType === 'file' && !file) return;
-    if (sourceType === 'url' && !bundleUrl.trim()) return;
+    if (!file) return;
     setDeploying(true);
+    setDeployStatus('building');
+    setDeployedSiteId(null);
     setLogs([]);
 
     const form = new FormData();
     const derivedName = (() => {
       if (name.trim()) return name.trim();
-      if (sourceType === 'file' && file) {
+      if (file) {
         return file.name.replace(/\W+/g, '-').toLowerCase();
-      }
-      if (sourceType === 'url') {
-        const lastSegment = bundleUrl.trim().split('/').pop() || 'site';
-        const clean = lastSegment.replace(/\W+/g, '-').toLowerCase();
-        return clean || 'site';
       }
       return 'site';
     })();
 
-    if (sourceType === 'file' && file) {
+    if (file) {
       form.append('bundle', file);
-    }
-    if (sourceType === 'url') {
-      form.append('bundleUrl', bundleUrl.trim());
     }
     form.append('name', derivedName);
     form.append('domainPrefix', domainPrefix.trim());
@@ -109,7 +115,8 @@ export const NewSite: React.FC = () => {
       const res = await api.upload<{ siteId: string; deploymentId: string }>('/sites', form);
       const logsRes = await api.get<{ logs: string[] }>(`/deployments/${res.deploymentId}/logs`).catch(() => ({ logs: [] }));
       if (logsRes.logs.length > 0) setLogs(logsRes.logs);
-      navigate(`/sites/${res.siteId}`);
+      setDeployStatus('success');
+      setDeployedSiteId(res.siteId);
     } catch (err) {
       alert((err as Error).message);
     } finally {
@@ -126,51 +133,56 @@ export const NewSite: React.FC = () => {
 
       <Card>
         <div className="space-y-6">
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              size="sm"
-              variant={sourceType === 'file' ? 'primary' : 'outline'}
-              onClick={() => setSourceType('file')}
-            >
-              {t('sites.deploy.upload')}
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant={sourceType === 'url' ? 'primary' : 'outline'}
-              onClick={() => setSourceType('url')}
-            >
-              {t('sites.deploy.url')}
-            </Button>
+          <div className="flex items-center gap-2 text-sm text-zinc-400">
+            <span className="uppercase tracking-wide text-xs text-zinc-500">{t('sites.deploy.status.label')}</span>
+            <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+              deployStatus === 'success' ? 'bg-emerald-500/10 text-emerald-400' :
+              deployStatus === 'building' ? 'bg-amber-500/10 text-amber-400' :
+              'bg-zinc-800 text-zinc-300'
+            }`}>
+              {deployStatus === 'success'
+                ? t('sites.deploy.status.success')
+                : deployStatus === 'building'
+                ? t('sites.deploy.status.building')
+                : t('sites.deploy.status.upload')}
+            </span>
           </div>
-
-          {sourceType === 'file' ? (
-            <div className="border-2 border-dashed border-zinc-700 rounded-xl p-8 text-center hover:bg-zinc-800/30 transition-colors cursor-pointer relative">
-              <input 
-                type="file" 
-                className="absolute inset-0 opacity-0 cursor-pointer" 
-                onChange={(e) => setFile(e.target.files?.[0] || null)}
-                accept=".zip,.tar.gz"
-              />
-              <div className="flex flex-col items-center gap-3">
-                <div className="p-3 bg-indigo-500/10 rounded-full text-indigo-400">
-                  {file ? <File className="w-8 h-8" /> : <UploadCloud className="w-8 h-8" />}
-                </div>
-                <div>
-                  <p className="font-medium text-zinc-200">{file ? file.name : t('sites.deploy.drag')}</p>
-                  <p className="text-sm text-zinc-500 mt-1">{file ? `${(file.size / 1024).toFixed(1)} KB` : t('sites.deploy.support')}</p>
-                </div>
+          <div className="border-2 border-dashed border-zinc-700 rounded-xl p-8 text-center hover:bg-zinc-800/30 transition-colors cursor-pointer relative">
+            <input 
+              type="file" 
+              className="absolute inset-0 opacity-0 cursor-pointer" 
+              onChange={(e) => {
+                const nextFile = e.target.files?.[0] || null;
+                if (nextFile) {
+                  const lowerName = nextFile.name.toLowerCase();
+                  const isAllowed = allowedExtensions.some((ext) => lowerName.endsWith(ext));
+                  if (!isAllowed) {
+                    alert(t('sites.deploy.filetype', { types: 'zip, tar.gz, 7z, rar' }));
+                    e.target.value = '';
+                    setFile(null);
+                    return;
+                  }
+                }
+                if (nextFile && nextFile.size > maxBundleSize) {
+                  alert(t('sites.deploy.filesize', { size: '50MB' }));
+                  e.target.value = '';
+                  setFile(null);
+                  return;
+                }
+                setFile(nextFile);
+              }}
+              accept=".zip,.tar.gz,.7z,.rar"
+            />
+            <div className="flex flex-col items-center gap-3">
+              <div className="p-3 bg-indigo-500/10 rounded-full text-indigo-400">
+                {file ? <File className="w-8 h-8" /> : <UploadCloud className="w-8 h-8" />}
+              </div>
+              <div>
+                <p className="font-medium text-zinc-200">{file ? file.name : t('sites.deploy.drag')}</p>
+                <p className="text-sm text-zinc-500 mt-1">{file ? `${(file.size / 1024).toFixed(1)} KB` : t('sites.deploy.support')}</p>
               </div>
             </div>
-          ) : (
-            <Input
-              label={t('sites.deploy.bundleurl')}
-              placeholder="https://example.com/build.zip"
-              value={bundleUrl}
-              onChange={(e) => setBundleUrl(e.target.value)}
-            />
-          )}
+          </div>
 
           <div className="space-y-4">
              <Input label={t('sites.deploy.project')} placeholder="my-awesome-project" value={name} onChange={(e) => setName(e.target.value)} />
@@ -185,8 +197,8 @@ export const NewSite: React.FC = () => {
                   value={domainChoice}
                   onChange={(e) => setDomainChoice(e.target.value)}
                 >
-                  <option value="default">{t('sites.deploy.defaultdomain')}</option>
-                  {secondaryDomains.map((domain) => (
+                  <option value="default">{t('sites.deploy.defaultdomain')} (Default)</option>
+                  {selectableDomains.map((domain) => (
                     <option key={domain} value={domain}>{domain}</option>
                   ))}
                 </select>
@@ -227,19 +239,20 @@ export const NewSite: React.FC = () => {
             </div>
           </div>
 
-          {!deploying ? (
+          {!deploying && deployStatus !== 'success' ? (
             <Button
               className="w-full h-12 text-base"
               disabled={
                 domainAvailable !== true ||
                 (recordLimit !== null && recordUsed !== null && recordLimit - recordUsed <= 0) ||
-                (sourceType === 'file' ? !file : !bundleUrl.trim())
+                !file
               }
               onClick={handleDeploy}
             >
               {t('sites.deploy.deploy')}
             </Button>
-          ) : (
+          ) : null}
+          {deployStatus === 'building' && (
             <div className="rounded-lg bg-zinc-950 p-4 font-mono text-xs space-y-1 h-48 overflow-y-auto border border-zinc-800">
               {logs.length === 0 && (
                 <div className="text-zinc-500">{t('sites.deploy.waiting')}</div>
@@ -250,6 +263,16 @@ export const NewSite: React.FC = () => {
                   {log}
                 </div>
               ))}
+            </div>
+          )}
+          {deployStatus === 'success' && (
+            <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4 flex flex-col gap-3">
+              <div className="text-emerald-400 font-semibold">{t('sites.deploy.success')}</div>
+              {deployedSiteId && (
+                <Button onClick={() => navigate(`/sites/${deployedSiteId}`)}>
+                  {t('sites.deploy.viewsite')}
+                </Button>
+              )}
             </div>
           )}
         </div>
