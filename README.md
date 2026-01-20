@@ -27,32 +27,35 @@ LastPush is a developer-first platform UI for domain search/registration, DNS ma
 
 ```
 .
-©À©¤components/
-©¦  ©À©¤Layout.tsx
-©¦  ©¸©¤ui/
-©¦     ©¸©¤Common.tsx
-©À©¤docs/
-©¦  ©À©¤api.md
-©¦  ©À©¤app.md
-©¦  ©¸©¤overview.md
-©À©¤pages/
-©¦  ©À©¤Billing.tsx
-©¦  ©À©¤Dashboard.tsx
-©¦  ©À©¤DomainManager.tsx
-©¦  ©À©¤Home.tsx
-©¦  ©À©¤Login.tsx
-©¦  ©À©¤Settings.tsx
-©¦  ©¸©¤SiteManager.tsx
-©À©¤api.ts
-©À©¤App.tsx
-©À©¤index.css
-©À©¤index.html
-©À©¤index.tsx
-©À©¤metadata.json
-©À©¤package.json
-©À©¤pnpm-lock.yaml
-©À©¤tsconfig.json
-©¸©¤vite.config.ts
+components/
+  Layout.tsx
+  ui/
+    Common.tsx
+docs/
+  api.md
+  app.md
+  overview.md
+pages/
+  Billing.tsx
+  Dashboard.tsx
+  DomainManager.tsx
+  Home.tsx
+  Login.tsx
+  OrderDetail.tsx
+  OrderNew.tsx
+  Orders.tsx
+  Settings.tsx
+  SiteManager.tsx
+api.ts
+App.tsx
+i18n.tsx
+index.css
+index.html
+index.tsx
+metadata.json
+package.json
+tsconfig.json
+vite.config.ts
 ```
 
 ## App Architecture

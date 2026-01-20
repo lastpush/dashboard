@@ -4,9 +4,11 @@ import { ArrowLeft, Plus, Trash2, Globe, ShieldCheck, ArrowRight } from 'lucide-
 import { Button, Card, Badge } from '../components/ui/Common.tsx';
 import { Domain, DNSRecord, DomainSummary } from '../types.ts';
 import { api } from '../api.ts';
+import { useI18n } from '../i18n.tsx';
 
 // --- Sub-component: DNS Editor ---
 const DNSEditor: React.FC<{ domainName: string; initialRecords: DNSRecord[]; recordLimit?: number }> = ({ domainName, initialRecords, recordLimit }) => {
+  const { t } = useI18n();
   const [records, setRecords] = useState(initialRecords);
   const [dirtyIds, setDirtyIds] = useState<Set<string>>(new Set());
   const [savingIds, setSavingIds] = useState<Set<string>>(new Set());
@@ -127,15 +129,15 @@ const DNSEditor: React.FC<{ domainName: string; initialRecords: DNSRecord[]; rec
     <div className="space-y-4">
       <div className="flex justify-between items-center mb-4">
         <div>
-          <h3 className="text-lg font-medium text-white">DNS Management</h3>
+          <h3 className="text-lg font-medium text-white">{t('domains.dns.title')}</h3>
           {remainingRecords !== null && (
             <div className="text-xs text-zinc-500 mt-1">
-              Remaining records: {remainingRecords} / {recordLimit}
+              {t('domains.dns.remaining', { remaining: remainingRecords, limit: recordLimit || 0 })}
             </div>
           )}
         </div>
         <Button size="sm" onClick={handleAdd} disabled={!canAddRecord || !!newRecordId}>
-          <Plus className="w-4 h-4 mr-2" />Add Record
+          <Plus className="w-4 h-4 mr-2" />{t('domains.dns.add')}
         </Button>
       </div>
 
@@ -143,11 +145,11 @@ const DNSEditor: React.FC<{ domainName: string; initialRecords: DNSRecord[]; rec
         <table className="w-full text-left text-sm text-zinc-400">
           <thead className="bg-zinc-900 text-zinc-200 uppercase text-xs font-semibold">
             <tr>
-              <th className="px-4 py-3 w-24">Type</th>
-              <th className="px-4 py-3 w-48">Name</th>
-              <th className="px-4 py-3">Content</th>
-              <th className="px-4 py-3 w-24">TTL</th>
-              <th className="px-4 py-3 w-24">Proxy</th>
+              <th className="px-4 py-3 w-24">{t('domains.dns.type')}</th>
+              <th className="px-4 py-3 w-48">{t('domains.dns.name')}</th>
+              <th className="px-4 py-3">{t('domains.dns.content')}</th>
+              <th className="px-4 py-3 w-24">{t('domains.dns.ttl')}</th>
+              <th className="px-4 py-3 w-24">{t('domains.dns.proxy')}</th>
               <th className="px-4 py-3 w-16"></th>
             </tr>
           </thead>
@@ -198,7 +200,7 @@ const DNSEditor: React.FC<{ domainName: string; initialRecords: DNSRecord[]; rec
                       checked={rec.proxied}
                       onChange={(e) => handleUpdate(rec.id, 'proxied', e.target.checked)}
                     />
-                    {rec.proxied ? <Badge variant="warning">Proxied</Badge> : <Badge variant="neutral">DNS Only</Badge>}
+                    {rec.proxied ? <Badge variant="warning">{t('domains.dns.proxied')}</Badge> : <Badge variant="neutral">{t('domains.dns.dnsonly')}</Badge>}
                   </label>
                 </td>
                 <td className="px-4 py-3 text-right">
@@ -209,7 +211,7 @@ const DNSEditor: React.FC<{ domainName: string; initialRecords: DNSRecord[]; rec
                       disabled={!dirtyIds.has(rec.id) || savingIds.has(rec.id)}
                       onClick={() => handleSave(rec)}
                     >
-                      {savingIds.has(rec.id) ? 'Saving...' : 'Save'}
+                      {savingIds.has(rec.id) ? t('domains.dns.saving') : t('domains.dns.save')}
                     </Button>
                     <button onClick={() => handleDelete(rec.id)} className="text-zinc-600 hover:text-red-400" disabled={savingIds.has(rec.id)}>
                       <Trash2 className="w-4 h-4" />
@@ -220,7 +222,7 @@ const DNSEditor: React.FC<{ domainName: string; initialRecords: DNSRecord[]; rec
             ))}
           </tbody>
         </table>
-        {records.length === 0 && <div className="p-8 text-center text-zinc-500">No records found.</div>}
+        {records.length === 0 && <div className="p-8 text-center text-zinc-500">{t('domains.dns.none')}</div>}
       </div>
     </div>
   );
@@ -228,12 +230,13 @@ const DNSEditor: React.FC<{ domainName: string; initialRecords: DNSRecord[]; rec
 
 // --- Page: Domain Detail ---
 export const DomainDetail: React.FC = () => {
+  const { t } = useI18n();
   const { name } = useParams();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'overview' | 'dns'>('overview');
   const [domain, setDomain] = useState<Domain | null>(null);
 
-  if (!name) return <div>Invalid domain</div>;
+  if (!name) return <div>{t('domains.detail.invalid')}</div>;
 
   useEffect(() => {
     api.get<Domain>(`/domains/${name}`)
@@ -252,10 +255,10 @@ export const DomainDetail: React.FC = () => {
           <div className="flex items-center gap-2 mt-1 text-sm text-zinc-500">
             <span className={`flex items-center gap-1 ${domain?.registrarStatus === 'Ok' ? 'text-emerald-400' : 'text-amber-400'}`}>
               <ShieldCheck className="w-3 h-3" />
-              {domain?.registrarStatus === 'Ok' ? 'Active' : domain?.registrarStatus || 'Unknown'}
+              {domain?.registrarStatus === 'Ok' ? t('domains.active') : domain?.registrarStatus || 'Unknown'}
             </span>
             <span>/</span>
-            <span>Expires {domain?.expiresAt || '—'}</span>
+            <span>{t('domains.detail.expires', { date: domain?.expiresAt || '--' })}</span>
           </div>
         </div>
       </div>
@@ -265,38 +268,38 @@ export const DomainDetail: React.FC = () => {
           onClick={() => setActiveTab('overview')}
           className={`pb-3 ${activeTab === 'overview' ? 'text-indigo-400 border-b-2 border-indigo-400' : 'text-zinc-500 hover:text-white'}`}
         >
-          Overview
+          {t('domains.detail.overview')}
         </button>
         <button 
           onClick={() => setActiveTab('dns')}
           className={`pb-3 ${activeTab === 'dns' ? 'text-indigo-400 border-b-2 border-indigo-400' : 'text-zinc-500 hover:text-white'}`}
         >
-          DNS Records
+          {t('domains.detail.dns')}
         </button>
       </div>
 
       {activeTab === 'overview' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Card title="Registration" className="h-full">
+          <Card title={t('domains.detail.registration')} className="h-full">
             <div className="space-y-4">
               <div className="flex justify-between py-2 border-b border-zinc-800/50">
-                <span className="text-zinc-500">Auto-renew</span>
+                <span className="text-zinc-500">{t('domains.detail.autorenew')}</span>
                 <span className="text-white font-medium">{domain?.autoRenew ? 'On' : 'Off'}</span>
               </div>
               <div className="pt-2">
-                 <Button variant="outline" className="w-full">Manage Subscription</Button>
+                 <Button variant="outline" className="w-full">{t('domains.detail.manage')}</Button>
               </div>
             </div>
           </Card>
-          <Card title="SSL / HTTPS" className="h-full">
+          <Card title={t('domains.detail.ssl')} className="h-full">
             <div className="flex flex-col items-center justify-center h-48 space-y-3">
                <div className="w-16 h-16 rounded-full bg-emerald-500/10 flex items-center justify-center">
                  <ShieldCheck className="w-8 h-8 text-emerald-500" />
                </div>
                <h3 className="text-white font-medium">
-                 {domain?.sslStatus === 'ACTIVE' ? 'Universal SSL Active' : 'SSL Pending'}
+                 {domain?.sslStatus === 'ACTIVE' ? t('domains.detail.sslactive') : t('domains.detail.sslpending')}
                </h3>
-               <p className="text-zinc-500 text-center text-sm px-8">Your domain is automatically secured with a wildcard certificate.</p>
+               <p className="text-zinc-500 text-center text-sm px-8">{t('domains.detail.sslcopy')}</p>
             </div>
           </Card>
         </div>
@@ -309,6 +312,7 @@ export const DomainDetail: React.FC = () => {
 
 // --- Page: Domain List ---
 export const DomainList: React.FC = () => {
+  const { t } = useI18n();
   const [domains, setDomains] = useState<DomainSummary[]>([]);
 
   useEffect(() => {
@@ -320,21 +324,21 @@ export const DomainList: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-white">Domains</h1>
+        <h1 className="text-2xl font-bold text-white">{t('domains.title')}</h1>
         <div className="flex gap-2">
           <Link to="/domains/search">
-            <Button><Plus className="w-4 h-4 mr-2" /> Buy Domain</Button>
+            <Button><Plus className="w-4 h-4 mr-2" /> {t('domains.buy')}</Button>
           </Link>
         </div>
       </div>
 
       {domains.length === 0 ? (
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-8 text-center">
-          <div className="text-lg font-medium text-white mb-2">No domains yet</div>
-          <div className="text-sm text-zinc-500 mb-6">Buy a new domain to get started.</div>
+          <div className="text-lg font-medium text-white mb-2">{t('domains.empty.title')}</div>
+          <div className="text-sm text-zinc-500 mb-6">{t('domains.empty.subtitle')}</div>
           <div className="flex items-center justify-center gap-3">
             <Link to="/">
-              <Button>Buy Domain</Button>
+              <Button>{t('domains.buy')}</Button>
             </Link>
           </div>
         </div>
@@ -354,11 +358,13 @@ export const DomainList: React.FC = () => {
                    <div className="p-2 bg-zinc-800 rounded-lg"><Globe className="w-5 h-5 text-zinc-400" /></div>
                    <div>
                      <div className="font-mono font-medium text-zinc-200">{domain.name}</div>
-                     <div className="text-xs text-zinc-500">Auto-renews {domain.expiresAt}</div>
+                     <div className="text-xs text-zinc-500">{t('domains.autorenews', { date: domain.expiresAt })}</div>
                    </div>
                  </div>
                  <div className="flex items-center gap-4">
-                   <Badge variant={badgeVariant}>{badgeLabel}</Badge>
+                   <Badge variant={badgeVariant}>
+                     {badgeLabel === 'Active' ? t('domains.active') : badgeLabel === 'Pending' ? t('domains.pending') : t('domains.hold')}
+                   </Badge>
                    <ArrowRight className="w-4 h-4 text-zinc-600 group-hover:text-zinc-400" />
                  </div>
               </Link>

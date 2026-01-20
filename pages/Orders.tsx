@@ -3,24 +3,26 @@ import { Link } from 'react-router-dom';
 import { Card, Badge, Button } from '../components/ui/Common.tsx';
 import { api } from '../api.ts';
 import { Order } from '../types.ts';
+import { useI18n } from '../i18n.tsx';
 
-const statusLabel = (status?: Order['fulfillmentStatus']) => {
+const statusLabel = (status: Order['fulfillmentStatus'] | undefined, t: (key: string) => string) => {
   switch (status) {
     case 'ONLINE':
-      return { label: 'Online', variant: 'success' as const };
+      return { label: t('orders.status.online'), variant: 'success' as const };
     case 'FAILED':
-      return { label: 'Failed', variant: 'error' as const };
+      return { label: t('orders.status.failed'), variant: 'error' as const };
     case 'CLOUDFLARE_PENDING':
-      return { label: 'Pending DNS', variant: 'warning' as const };
+      return { label: t('orders.status.dnspending'), variant: 'warning' as const };
     case 'PURCHASED':
-      return { label: 'Purchased', variant: 'warning' as const };
+      return { label: t('orders.status.purchased'), variant: 'warning' as const };
     case 'PURCHASING':
     default:
-      return { label: 'Purchasing', variant: 'warning' as const };
+      return { label: t('orders.status.purchasing'), variant: 'warning' as const };
   }
 };
 
 export const Orders: React.FC = () => {
+  const { t } = useI18n();
   const [orders, setOrders] = useState<Order[]>([]);
 
   useEffect(() => {
@@ -33,23 +35,23 @@ export const Orders: React.FC = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Orders</h1>
-          <p className="text-sm text-zinc-500">Track domain purchase and provisioning status.</p>
+          <h1 className="text-2xl font-bold text-white">{t('orders.title')}</h1>
+          <p className="text-sm text-zinc-500">{t('orders.subtitle')}</p>
         </div>
-        <Link to="/"><Button>Buy Domain</Button></Link>
+        <Link to="/"><Button>{t('orders.buy')}</Button></Link>
       </div>
 
       {orders.length === 0 ? (
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-8 text-center">
-          <div className="text-lg font-medium text-white mb-2">No orders yet</div>
-          <div className="text-sm text-zinc-500 mb-6">Search for a domain to place your first order.</div>
-          <Link to="/"><Button>Find Domain</Button></Link>
+          <div className="text-lg font-medium text-white mb-2">{t('orders.empty.title')}</div>
+          <div className="text-sm text-zinc-500 mb-6">{t('orders.empty.subtitle')}</div>
+          <Link to="/"><Button>{t('orders.empty.cta')}</Button></Link>
         </div>
       ) : (
         <Card className="overflow-hidden">
           <div className="divide-y divide-zinc-800">
             {orders.map((order) => {
-              const status = statusLabel(order.fulfillmentStatus);
+              const status = statusLabel(order.fulfillmentStatus, t);
               return (
                 <Link
                   key={order.id}

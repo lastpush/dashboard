@@ -3,15 +3,10 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Card, Button, Badge } from '../components/ui/Common.tsx';
 import { api } from '../api.ts';
 import { Order } from '../types.ts';
-
-const statusSteps = [
-  { key: 'PURCHASING', label: 'Domain purchasing' },
-  { key: 'PURCHASED', label: 'Domain purchased' },
-  { key: 'CLOUDFLARE_PENDING', label: 'Provisioning to Cloudflare' },
-  { key: 'ONLINE', label: 'Domain online' },
-];
+import { useI18n } from '../i18n.tsx';
 
 export const OrderDetail: React.FC = () => {
+  const { t } = useI18n();
   const { id } = useParams();
   const navigate = useNavigate();
   const [order, setOrder] = useState<Order | null>(null);
@@ -19,8 +14,14 @@ export const OrderDetail: React.FC = () => {
   const [checking, setChecking] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const statusSteps = useMemo(() => ([
+    { key: 'PURCHASING', label: t('orderdetail.step.purchasing') },
+    { key: 'PURCHASED', label: t('orderdetail.step.purchased') },
+    { key: 'CLOUDFLARE_PENDING', label: t('orderdetail.step.cloudflare') },
+    { key: 'ONLINE', label: t('orderdetail.step.online') },
+  ]), [t]);
   const fulfillment = order?.fulfillmentStatus || 'PURCHASING';
-  const currentIndex = useMemo(() => statusSteps.findIndex((s) => s.key === fulfillment), [fulfillment]);
+  const currentIndex = useMemo(() => statusSteps.findIndex((s) => s.key === fulfillment), [fulfillment, statusSteps]);
   const isPending = fulfillment !== 'ONLINE' && fulfillment !== 'FAILED';
 
   const fetchOrder = () => {
@@ -52,42 +53,42 @@ export const OrderDetail: React.FC = () => {
   };
 
   if (!id) {
-    return <div className="text-zinc-400">Invalid order.</div>;
+    return <div className="text-zinc-400">{t('ordernew.invalid')}</div>;
   }
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Order Status</h1>
-          <p className="text-sm text-zinc-500">Order #{id}</p>
+          <h1 className="text-2xl font-bold text-white">{t('orderdetail.title')}</h1>
+          <p className="text-sm text-zinc-500">{t('orderdetail.order', { id })}</p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => navigate('/domains')}>Back to Domains</Button>
+        <Button variant="outline" size="sm" onClick={() => navigate('/domains')}>{t('orderdetail.back')}</Button>
       </div>
 
       <Card>
         <div className="space-y-3 text-sm">
           <div className="flex items-center justify-between">
-            <span className="text-zinc-400">Domain</span>
+            <span className="text-zinc-400">{t('ordernew.domain')}</span>
             <span className="text-white font-mono">{order?.domain || '--'}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-zinc-400">Amount</span>
+            <span className="text-zinc-400">{t('orderdetail.amount')}</span>
             <span className="text-white">${order?.amount?.toFixed(2) ?? '--'}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-zinc-400">Status</span>
+            <span className="text-zinc-400">{t('orderdetail.status')}</span>
             <Badge variant={fulfillment === 'ONLINE' ? 'success' : fulfillment === 'FAILED' ? 'error' : 'warning'}>
               {fulfillment}
             </Badge>
           </div>
           {isPending && (
-            <div className="text-xs text-amber-400">Pending - we are still processing your domain.</div>
+            <div className="text-xs text-amber-400">{t('orderdetail.pending')}</div>
           )}
         </div>
       </Card>
 
-      <Card title="Progress">
+      <Card title={t('orderdetail.progress')}>
         <div className="space-y-3">
           {statusSteps.map((step, index) => {
             const reached = currentIndex >= index;
@@ -98,7 +99,7 @@ export const OrderDetail: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <span className={`text-sm ${reached ? 'text-white' : 'text-zinc-500'}`}>{step.label}</span>
                   {isCurrent && fulfillment !== 'ONLINE' && fulfillment !== 'FAILED' && (
-                    <Badge variant="warning">Pending</Badge>
+                    <Badge variant="warning">{t('domains.pending')}</Badge>
                   )}
                 </div>
               </div>
@@ -111,9 +112,9 @@ export const OrderDetail: React.FC = () => {
 
       <div className="flex items-center gap-3">
         <Button onClick={handleCheck} isLoading={checking} disabled={loading}>
-          Check Status
+          {t('orderdetail.check')}
         </Button>
-        {loading && <span className="text-xs text-zinc-500">Refreshing...</span>}
+        {loading && <span className="text-xs text-zinc-500">{t('orderdetail.refresh')}</span>}
       </div>
     </div>
   );

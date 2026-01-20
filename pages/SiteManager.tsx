@@ -4,10 +4,12 @@ import { UploadCloud, File, Globe, Clock, CheckCircle, Plus } from 'lucide-react
 import { Button, Input, Card, Badge } from '../components/ui/Common.tsx';
 import { Deployment, Site, SiteSummary } from '../types.ts';
 import { api } from '../api.ts';
+import { useI18n } from '../i18n.tsx';
 
 // --- Page: New Site ---
 export const NewSite: React.FC = () => {
   const navigate = useNavigate();
+  const { t } = useI18n();
   const [file, setFile] = useState<File | null>(null);
   const [sourceType, setSourceType] = useState<'file' | 'url'>('file');
   const [bundleUrl, setBundleUrl] = useState('');
@@ -118,8 +120,8 @@ export const NewSite: React.FC = () => {
   return (
     <div className="max-w-2xl mx-auto space-y-8">
       <div>
-        <h1 className="text-3xl font-bold text-white mb-2">Deploy a new site</h1>
-        <p className="text-zinc-400">Import your code or upload a static bundle.</p>
+        <h1 className="text-3xl font-bold text-white mb-2">{t('sites.deploy.title')}</h1>
+        <p className="text-zinc-400">{t('sites.deploy.subtitle')}</p>
       </div>
 
       <Card>
@@ -131,7 +133,7 @@ export const NewSite: React.FC = () => {
               variant={sourceType === 'file' ? 'primary' : 'outline'}
               onClick={() => setSourceType('file')}
             >
-              Upload File
+              {t('sites.deploy.upload')}
             </Button>
             <Button
               type="button"
@@ -139,7 +141,7 @@ export const NewSite: React.FC = () => {
               variant={sourceType === 'url' ? 'primary' : 'outline'}
               onClick={() => setSourceType('url')}
             >
-              Use URL
+              {t('sites.deploy.url')}
             </Button>
           </div>
 
@@ -156,14 +158,14 @@ export const NewSite: React.FC = () => {
                   {file ? <File className="w-8 h-8" /> : <UploadCloud className="w-8 h-8" />}
                 </div>
                 <div>
-                  <p className="font-medium text-zinc-200">{file ? file.name : "Drag & drop your bundle"}</p>
-                  <p className="text-sm text-zinc-500 mt-1">{file ? `${(file.size / 1024).toFixed(1)} KB` : "Support for .zip, .tar.gz"}</p>
+                  <p className="font-medium text-zinc-200">{file ? file.name : t('sites.deploy.drag')}</p>
+                  <p className="text-sm text-zinc-500 mt-1">{file ? `${(file.size / 1024).toFixed(1)} KB` : t('sites.deploy.support')}</p>
                 </div>
               </div>
             </div>
           ) : (
             <Input
-              label="Bundle URL"
+              label={t('sites.deploy.bundleurl')}
               placeholder="https://example.com/build.zip"
               value={bundleUrl}
               onChange={(e) => setBundleUrl(e.target.value)}
@@ -171,29 +173,29 @@ export const NewSite: React.FC = () => {
           )}
 
           <div className="space-y-4">
-             <Input label="Project Name" placeholder="my-awesome-project" value={name} onChange={(e) => setName(e.target.value)} />
+             <Input label={t('sites.deploy.project')} placeholder="my-awesome-project" value={name} onChange={(e) => setName(e.target.value)} />
           </div>
 
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-zinc-400 mb-1.5">Domain</label>
+                <label className="block text-xs font-medium text-zinc-400 mb-1.5">{t('sites.deploy.domain')}</label>
                 <select
                   className="flex h-10 w-full rounded-lg border border-zinc-700 bg-zinc-900/50 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all"
                   value={domainChoice}
                   onChange={(e) => setDomainChoice(e.target.value)}
                 >
-                  <option value="default">Default Domain</option>
+                  <option value="default">{t('sites.deploy.defaultdomain')}</option>
                   {secondaryDomains.map((domain) => (
                     <option key={domain} value={domain}>{domain}</option>
                   ))}
                 </select>
                 {domainChoice === 'default' && defaultDomains.length === 0 && (
-                  <div className="mt-2 text-xs text-amber-400">No default domains available.</div>
+                  <div className="mt-2 text-xs text-amber-400">{t('sites.deploy.nodomain')}</div>
                 )}
               </div>
               <Input
-                label="Domain Prefix"
+                label={t('sites.deploy.prefix')}
                 placeholder="my-site"
                 value={domainPrefix}
                 onChange={(e) => setDomainPrefix(e.target.value)}
@@ -210,7 +212,7 @@ export const NewSite: React.FC = () => {
                 }
                 onClick={handleCheckDomain}
               >
-                {checkingDomain ? 'Checking...' : 'Check Availability'}
+                {checkingDomain ? t('sites.deploy.checking') : t('sites.deploy.check')}
               </Button>
               {domainCheckMessage && (
                 <span className={`text-sm ${domainAvailable ? 'text-emerald-400' : 'text-amber-400'}`}>
@@ -219,7 +221,7 @@ export const NewSite: React.FC = () => {
               )}
               {recordLimit !== null && recordUsed !== null && (
                 <span className="text-xs text-zinc-500">
-                  Remaining records: {Math.max(recordLimit - recordUsed, 0)} / {recordLimit}
+                  {t('sites.deploy.remaining', { remaining: Math.max(recordLimit - recordUsed, 0), limit: recordLimit })}
                 </span>
               )}
             </div>
@@ -235,12 +237,12 @@ export const NewSite: React.FC = () => {
               }
               onClick={handleDeploy}
             >
-              Deploy Now
+              {t('sites.deploy.deploy')}
             </Button>
           ) : (
             <div className="rounded-lg bg-zinc-950 p-4 font-mono text-xs space-y-1 h-48 overflow-y-auto border border-zinc-800">
               {logs.length === 0 && (
-                <div className="text-zinc-500">Waiting for build logs...</div>
+                <div className="text-zinc-500">{t('sites.deploy.waiting')}</div>
               )}
               {logs.map((log, i) => (
                 <div key={i} className="text-zinc-300">
@@ -258,6 +260,7 @@ export const NewSite: React.FC = () => {
 
 // --- Page: Site List ---
 export const SiteList: React.FC = () => {
+  const { t } = useI18n();
   const [sites, setSites] = useState<SiteSummary[]>([]);
 
   useEffect(() => {
@@ -269,16 +272,16 @@ export const SiteList: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-white">Sites</h1>
-        <Link to="/sites/new"><Button><Plus className="w-4 h-4 mr-2" /> New Project</Button></Link>
+        <h1 className="text-2xl font-bold text-white">{t('sites.title')}</h1>
+        <Link to="/sites/new"><Button><Plus className="w-4 h-4 mr-2" /> {t('sites.newproject')}</Button></Link>
       </div>
 
       {sites.length === 0 ? (
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-8 text-center">
-          <div className="text-lg font-medium text-white mb-2">No sites yet</div>
-          <div className="text-sm text-zinc-500 mb-6">Create a new site to deploy your first project.</div>
+          <div className="text-lg font-medium text-white mb-2">{t('sites.empty.title')}</div>
+          <div className="text-sm text-zinc-500 mb-6">{t('sites.empty.subtitle')}</div>
           <Link to="/sites/new">
-            <Button>Create New Site</Button>
+            <Button>{t('sites.empty.cta')}</Button>
           </Link>
         </div>
       ) : (
@@ -319,6 +322,7 @@ export const SiteList: React.FC = () => {
 
 // --- Page: Site Detail ---
 export const SiteDetail: React.FC = () => {
+  const { t } = useI18n();
   const { id } = useParams();
   const [site, setSite] = useState<Site | null>(null);
   const [deployments, setDeployments] = useState<Deployment[]>([]);
@@ -338,7 +342,7 @@ export const SiteDetail: React.FC = () => {
   }, [id]);
 
   if (!site) {
-    return <div className="text-zinc-400">Loading...</div>;
+    return <div className="text-zinc-400">{t('sites.detail.loading')}</div>;
   }
   
   return (
@@ -353,8 +357,8 @@ export const SiteDetail: React.FC = () => {
            </h1>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline">Settings</Button>
-          <Button>Create Deployment</Button>
+          <Button variant="outline">{t('sites.detail.settings')}</Button>
+          <Button>{t('sites.detail.createdeploy')}</Button>
         </div>
       </div>
 
@@ -363,20 +367,20 @@ export const SiteDetail: React.FC = () => {
           {deployments[0] && (
             <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
               <div className="px-6 py-4 border-b border-zinc-800 flex justify-between items-center">
-                <h3 className="font-semibold text-zinc-100">Production Deployment</h3>
+                <h3 className="font-semibold text-zinc-100">{t('sites.detail.production')}</h3>
                 <Badge variant="success">{deployments[0].status}</Badge>
               </div>
               <div className="p-6">
                 <div className="mt-4 flex gap-4 text-sm text-zinc-400">
                   <div>
-                     <span className="block text-xs text-zinc-500 uppercase">URL</span>
+                     <span className="block text-xs text-zinc-500 uppercase">{t('sites.detail.url')}</span>
                      <span className="flex items-center gap-1 text-white">
                        <Globe className="w-3 h-3" />
                        {deployments[0].url || `https://${site.domain}`}
                      </span>
                   </div>
                   <div>
-                     <span className="block text-xs text-zinc-500 uppercase">Created</span>
+                     <span className="block text-xs text-zinc-500 uppercase">{t('sites.detail.created')}</span>
                      <span className="text-white">{new Date(deployments[0].createdAt).toLocaleString()}</span>
                   </div>
                 </div>
@@ -385,7 +389,7 @@ export const SiteDetail: React.FC = () => {
           )}
 
           <div>
-            <h3 className="text-lg font-medium text-white mb-4">Deployment History</h3>
+            <h3 className="text-lg font-medium text-white mb-4">{t('sites.detail.history')}</h3>
             <div className="space-y-3">
                {deployments.map((dep, i) => (
                  <div key={dep.id} className="flex items-center justify-between p-4 rounded-lg bg-zinc-900/30 border border-zinc-800/50 hover:border-zinc-700 transition-colors">
@@ -395,12 +399,12 @@ export const SiteDetail: React.FC = () => {
                       </div>
                       <div>
                         <div className="text-sm font-medium text-zinc-200">Deployment #{dep.id}</div>
-                        <div className="text-xs text-zinc-500">{i === 0 ? 'Current Production' : new Date(dep.createdAt).toLocaleString()}</div>
+                        <div className="text-xs text-zinc-500">{i === 0 ? t('sites.detail.current') : new Date(dep.createdAt).toLocaleString()}</div>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
                       {dep.commitHash && <span className="text-xs font-mono text-zinc-500">{dep.commitHash}</span>}
-                      {i !== 0 && <Button size="sm" variant="ghost">Rollback</Button>}
+                      {i !== 0 && <Button size="sm" variant="ghost">{t('sites.detail.rollback')}</Button>}
                     </div>
                  </div>
                ))}
@@ -409,7 +413,7 @@ export const SiteDetail: React.FC = () => {
         </div>
 
         <div className="space-y-6">
-           <Card title="Domains">
+           <Card title={t('sites.detail.domains')}>
              <div className="space-y-3">
                {domains.map((d) => (
                  <div key={d.domain} className="flex items-center justify-between text-sm">
@@ -417,15 +421,15 @@ export const SiteDetail: React.FC = () => {
                    <Badge variant={d.type === 'PRIMARY' ? 'success' : 'neutral'}>{d.type}</Badge>
                  </div>
                ))}
-               <Button size="sm" variant="outline" className="w-full mt-2">Add Domain</Button>
+               <Button size="sm" variant="outline" className="w-full mt-2">{t('sites.detail.adddomain')}</Button>
              </div>
            </Card>
            
-           <Card title="Quick Actions">
+           <Card title={t('sites.detail.quick')}>
              <div className="space-y-2">
-               <Button variant="ghost" className="w-full justify-start text-zinc-400">View Logs</Button>
-               <Button variant="ghost" className="w-full justify-start text-zinc-400">Environment Variables</Button>
-               <Button variant="ghost" className="w-full justify-start text-zinc-400 hover:text-red-400">Delete Project</Button>
+               <Button variant="ghost" className="w-full justify-start text-zinc-400">{t('sites.detail.logs')}</Button>
+               <Button variant="ghost" className="w-full justify-start text-zinc-400">{t('sites.detail.env')}</Button>
+               <Button variant="ghost" className="w-full justify-start text-zinc-400 hover:text-red-400">{t('sites.detail.delete')}</Button>
              </div>
            </Card>
         </div>

@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import { GitCommit } from 'lucide-react';
 import { api } from '../api.ts';
 import { DomainSummary, Deployment, SiteSummary } from '../types.ts';
+import { useI18n } from '../i18n.tsx';
 
 const buildWeek = () => {
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -12,6 +13,7 @@ const buildWeek = () => {
 };
 
 export const Dashboard: React.FC = () => {
+  const { t } = useI18n();
   const [sitesCount, setSitesCount] = useState(0);
   const [domainsCount, setDomainsCount] = useState(0);
   const [balance, setBalance] = useState(0);
@@ -65,38 +67,38 @@ export const Dashboard: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card title="Active Sites">
+        <Card title={t('dashboard.sites')}>
           <div className="flex justify-between items-end">
             <div>
               <div className="text-3xl font-bold text-white">{sitesCount}</div>
-              <div className="text-sm text-zinc-500 mt-1">Active projects</div>
+              <div className="text-sm text-zinc-500 mt-1">{t('dashboard.activesites')}</div>
             </div>
-            <Link to="/sites/new"><Button size="sm" variant="outline">Deploy</Button></Link>
+            <Link to="/sites/new"><Button size="sm" variant="outline">{t('dashboard.deploy')}</Button></Link>
           </div>
         </Card>
-        <Card title="Domains">
+        <Card title={t('dashboard.domains')}>
           <div className="flex justify-between items-end">
              <div>
               <div className="text-3xl font-bold text-white">{domainsCount}</div>
-              <div className="text-sm text-zinc-500 mt-1">Connected domains</div>
+              <div className="text-sm text-zinc-500 mt-1">{t('dashboard.connecteddomains')}</div>
             </div>
-            <Link to="/domains/search"><Button size="sm" variant="outline">Buy</Button></Link>
+            <Link to="/domains/search"><Button size="sm" variant="outline">{t('dashboard.buy')}</Button></Link>
           </div>
         </Card>
-        <Card title="Current Balance">
+        <Card title={t('dashboard.balance')}>
           <div className="flex justify-between items-end">
              <div>
               <div className="text-3xl font-bold text-white">${balance.toFixed(2)}</div>
-              <div className="text-sm text-zinc-500 mt-1">Wallet balance</div>
+              <div className="text-sm text-zinc-500 mt-1">{t('dashboard.walletbalance')}</div>
             </div>
-            <Link to="/billing"><Button size="sm" variant="outline">Add Funds</Button></Link>
+            <Link to="/billing"><Button size="sm" variant="outline">{t('dashboard.addfunds')}</Button></Link>
           </div>
         </Card>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-           <Card title="Deployment Activity (Last 7 Days)">
+           <Card title={t('dashboard.activity')}>
               <div className="h-64 mt-4">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={activity}>
@@ -119,10 +121,10 @@ export const Dashboard: React.FC = () => {
         </div>
         
         <div className="lg:col-span-1">
-          <Card title="Recent Events">
+          <Card title={t('dashboard.events')}>
             <div className="space-y-4">
               {events.length === 0 && (
-                <div className="text-xs text-zinc-500">No recent events.</div>
+                <div className="text-xs text-zinc-500">{t('dashboard.noevents')}</div>
               )}
               {events.map((item, i) => (
                 <div key={i} className="flex items-start gap-3 p-3 rounded-lg hover:bg-zinc-800/50 transition-colors">
@@ -135,7 +137,7 @@ export const Dashboard: React.FC = () => {
                   </div>
                 </div>
               ))}
-              <Link to="/sites" className="block text-center text-xs text-zinc-500 hover:text-zinc-300 mt-4">View all activity</Link>
+              <Link to="/sites" className="block text-center text-xs text-zinc-500 hover:text-zinc-300 mt-4">{t('dashboard.viewall')}</Link>
             </div>
           </Card>
         </div>

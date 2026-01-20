@@ -6,6 +6,7 @@ import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useAccount, useSignMessage, useSwitchChain, useWriteContract } from 'wagmi';
 import { parseUnits } from 'viem';
 import { useSearchParams } from 'react-router-dom';
+import { useI18n } from '../i18n.tsx';
 
 const erc20Abi = [
   {
@@ -27,6 +28,7 @@ const chainOptions = [
 ];
 
 export const Billing: React.FC = () => {
+  const { t } = useI18n();
   const [searchParams] = useSearchParams();
   const [topUpAmount, setTopUpAmount] = useState('10');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -175,12 +177,12 @@ export const Billing: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-white">Billing & Usage</h1>
+      <h1 className="text-2xl font-bold text-white">{t('billing.title')}</h1>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="bg-gradient-to-br from-indigo-900/20 to-zinc-900 border-indigo-500/20">
           <div className="p-2">
-             <h3 className="text-zinc-400 text-sm font-medium">Available Balance</h3>
+             <h3 className="text-zinc-400 text-sm font-medium">{t('billing.balance')}</h3>
              <div className="text-4xl font-bold text-white mt-2">${balance.toFixed(2)}</div>
              <div className="mt-4 flex gap-2">
                {['10', '50', '100'].map(amt => (
@@ -194,16 +196,16 @@ export const Billing: React.FC = () => {
                ))}
              </div>
              <div className="mt-4 pt-4 border-t border-zinc-800/50">
-               <Button className="w-full" onClick={handleOpenTopUp} isLoading={isProcessing}>Add Funds (${topUpAmount})</Button>
+               <Button className="w-full" onClick={handleOpenTopUp} isLoading={isProcessing}>{t('billing.addfunds', { amount: topUpAmount })}</Button>
              </div>
           </div>
         </Card>
 
-        <Card title="Current Usage (Month)">
+        <Card title={t('billing.usage')}>
           <div className="space-y-4">
             <div>
               <div className="flex justify-between text-sm mb-1">
-                <span className="text-zinc-400">Bandwidth</span>
+                <span className="text-zinc-400">{t('billing.bandwidth')}</span>
                 <span className="text-white">{usage.bandwidthGB} GB / {usage.bandwidthLimitGB} GB</span>
               </div>
               <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
@@ -212,7 +214,7 @@ export const Billing: React.FC = () => {
             </div>
              <div>
               <div className="flex justify-between text-sm mb-1">
-                <span className="text-zinc-400">Build Minutes</span>
+                <span className="text-zinc-400">{t('billing.buildminutes')}</span>
                 <span className="text-white">{usage.buildMinutes} / {usage.buildMinutesLimit}</span>
               </div>
               <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
@@ -222,7 +224,7 @@ export const Billing: React.FC = () => {
           </div>
         </Card>
 
-        <Card title="Payment Method">
+        <Card title={t('billing.paymentmethod')}>
            {paymentMethods[0] ? (
              <div className="flex items-center gap-3 p-3 bg-zinc-900 rounded-lg border border-zinc-800 mb-4">
                <CreditCard className="w-8 h-8 text-zinc-500" />
@@ -232,23 +234,23 @@ export const Billing: React.FC = () => {
                </div>
              </div>
            ) : (
-             <div className="text-xs text-zinc-500 mb-4">No payment method on file.</div>
+             <div className="text-xs text-zinc-500 mb-4">{t('billing.nopayment')}</div>
            )}
-           <Button variant="outline" size="sm" className="w-full">Manage Cards</Button>
+           <Button variant="outline" size="sm" className="w-full">{t('billing.managecards')}</Button>
         </Card>
       </div>
 
       <div className="mt-8">
-        <h3 className="text-lg font-medium text-white mb-4">Transactions</h3>
+        <h3 className="text-lg font-medium text-white mb-4">{t('billing.transactions')}</h3>
         <div className="rounded-xl border border-zinc-800 overflow-hidden">
           <table className="w-full text-left text-sm text-zinc-400">
             <thead className="bg-zinc-900 text-zinc-200">
               <tr>
-                <th className="px-6 py-3">Date</th>
-                <th className="px-6 py-3">Description</th>
-                <th className="px-6 py-3">Status</th>
-                <th className="px-6 py-3 text-right">Amount</th>
-                <th className="px-6 py-3 text-right">Invoice</th>
+                <th className="px-6 py-3">{t('billing.date')}</th>
+                <th className="px-6 py-3">{t('billing.description')}</th>
+                <th className="px-6 py-3">{t('billing.status')}</th>
+                <th className="px-6 py-3 text-right">{t('billing.amount')}</th>
+                <th className="px-6 py-3 text-right">{t('billing.invoice')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800 bg-zinc-900/30">
@@ -257,7 +259,7 @@ export const Billing: React.FC = () => {
                   <td className="px-6 py-4">{tx.date}</td>
                   <td className="px-6 py-4 text-white">{tx.description}</td>
                   <td className="px-6 py-4">
-                    {tx.status === 'PAID' ? <Badge variant="success">Paid</Badge> : <Badge variant="error">Failed</Badge>}
+                    {tx.status === 'PAID' ? <Badge variant="success">{t('billing.paid')}</Badge> : <Badge variant="error">{t('billing.failed')}</Badge>}
                   </td>
                   <td className={`px-6 py-4 text-right font-mono ${tx.amount > 0 ? 'text-emerald-400' : 'text-zinc-200'}`}>
                     {tx.amount > 0 ? '+' : ''}{tx.amount.toFixed(2)}
@@ -282,23 +284,23 @@ export const Billing: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/70 backdrop-blur-sm">
           <div className="w-full max-w-lg rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-white">Add Funds via USDT</h3>
+              <h3 className="text-lg font-semibold text-white">{t('billing.topup.title')}</h3>
               <button
                 className="text-zinc-500 hover:text-zinc-200"
                 onClick={() => setShowTopUp(false)}
               >
-                Close
+                {t('billing.topup.close')}
               </button>
             </div>
 
             <div className="space-y-4">
               <div>
-                <div className="text-xs font-medium text-zinc-400 mb-2">Connect Wallet</div>
+                <div className="text-xs font-medium text-zinc-400 mb-2">{t('billing.topup.connect')}</div>
                 <ConnectButton />
               </div>
 
               <div>
-                <div className="text-xs font-medium text-zinc-400 mb-2">Select Chain</div>
+                <div className="text-xs font-medium text-zinc-400 mb-2">{t('billing.topup.chain')}</div>
                 <div className="flex flex-wrap gap-2">
                   {chainOptions.map((chain) => (
                     <Button
@@ -314,17 +316,17 @@ export const Billing: React.FC = () => {
               </div>
 
               <div className="flex items-center gap-3">
-                {loadingPayment && <span className="text-xs text-zinc-500">Loading payment address...</span>}
+                {loadingPayment && <span className="text-xs text-zinc-500">{t('billing.topup.loading')}</span>}
                 {paymentInfo && (
-                  <span className="text-xs text-zinc-500">Deposit: {paymentInfo.depositAddress}</span>
+                  <span className="text-xs text-zinc-500">{t('billing.topup.deposit', { address: paymentInfo.depositAddress })}</span>
                 )}
               </div>
 
               {paymentInfo && (
                 <div className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-4 text-sm text-zinc-400 space-y-2">
-                  <div>Token: USDT</div>
-                  <div>Amount: ${topUpAmount}</div>
-                  <div>Network: {chainOptions.find((c) => c.id === selectedChainId)?.label}</div>
+                  <div>{t('billing.topup.token')}</div>
+                  <div>{t('billing.topup.amount', { amount: topUpAmount })}</div>
+                  <div>{t('billing.topup.network', { network: chainOptions.find((c) => c.id === selectedChainId)?.label || '' })}</div>
                 </div>
               )}
 
@@ -339,7 +341,7 @@ export const Billing: React.FC = () => {
                   isLoading={isProcessing}
                   onClick={handleSendTransfer}
                 >
-                  Send USDT
+                  {t('billing.topup.send')}
                 </Button>
               </div>
             </div>

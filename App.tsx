@@ -11,6 +11,8 @@ import { Settings } from './pages/Settings.tsx';
 import { OrderNew } from './pages/OrderNew.tsx';
 import { OrderDetail } from './pages/OrderDetail.tsx';
 import { Orders } from './pages/Orders.tsx';
+import { I18nProvider } from './i18n.tsx';
+import { useI18n } from './i18n.tsx';
 import { User } from './types.ts';
 import { api } from './api.ts';
 
@@ -102,8 +104,9 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 // --- Protected Route Wrapper ---
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading } = useAuth();
+  const { t } = useI18n();
   if (loading) {
-    return <div className="p-6 text-zinc-400">Loading...</div>;
+    return <div className="p-6 text-zinc-400">{t('layout.loading')}</div>;
   }
   if (!user) {
     return <Navigate to="/login" replace />;
@@ -117,9 +120,10 @@ const App: React.FC = () => {
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider theme={darkTheme()}>
           <AuthProvider>
-            <Router>
-              <Layout>
-                <Routes>
+            <I18nProvider>
+              <Router>
+                <Layout>
+                  <Routes>
                   {/* Public Routes */}
                   <Route path="/" element={<Home />} />
                   <Route path="/login" element={<Login />} />
@@ -143,9 +147,10 @@ const App: React.FC = () => {
                   
                   {/* Fallback */}
                   <Route path="*" element={<Navigate to="/" />} />
-                </Routes>
-              </Layout>
-            </Router>
+                  </Routes>
+                </Layout>
+              </Router>
+            </I18nProvider>
           </AuthProvider>
         </RainbowKitProvider>
       </QueryClientProvider>

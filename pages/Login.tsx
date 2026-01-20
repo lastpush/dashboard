@@ -7,9 +7,11 @@ import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useAccount, useSignMessage, useDisconnect } from 'wagmi';
 import { api } from '../api.ts';
 import { User } from '../types.ts';
+import { useI18n } from '../i18n.tsx';
 
 export const Login: React.FC = () => {
   const { setSession, updateUser } = useAuth();
+  const { t } = useI18n();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const redirect = searchParams.get('redirect') || '/dashboard';
@@ -106,8 +108,8 @@ export const Login: React.FC = () => {
     <div className="min-h-screen flex items-center justify-center bg-zinc-950 p-4">
       <Card className="w-full max-w-md border-zinc-800 bg-zinc-900">
         <div className="text-center mb-8">
-           <h2 className="text-2xl font-bold text-white mb-2">Welcome to LastPush</h2>
-           <p className="text-zinc-500 text-sm">Sign in to manage your domains and deployments</p>
+           <h2 className="text-2xl font-bold text-white mb-2">{t('login.title')}</h2>
+           <p className="text-zinc-500 text-sm">{t('login.subtitle')}</p>
         </div>
 
         {step === 'methods' && (
@@ -151,8 +153,8 @@ export const Login: React.FC = () => {
                               onClick={openConnectModal}
                             >
                               <span className="flex items-center gap-3">
-                                <Wallet className="w-5 h-5 text-indigo-400" /> 
-                                Connect Wallet
+                                <Wallet className="w-5 h-5 text-indigo-400" />
+                                {t('login.wallet')}
                               </span>
                               <ArrowRight className="w-4 h-4 text-zinc-500" />
                             </Button>
@@ -162,14 +164,14 @@ export const Login: React.FC = () => {
                         if (chain.unsupported) {
                           return (
                              <Button variant="danger" className="w-full" onClick={openChainModal}>
-                                Wrong network
+                                {t('login.wrongnetwork')}
                              </Button>
                           );
                         }
 
                         return (
                           <div className="text-center space-y-2">
-                             <div className="text-zinc-400 text-sm">Wallet Connected</div>
+                             <div className="text-zinc-400 text-sm">{t('login.walletconnected')}</div>
                              <Button variant="outline" className="w-full font-mono" onClick={openAccountModal}>
                                {account.displayName}
                              </Button>
@@ -184,17 +186,17 @@ export const Login: React.FC = () => {
             
             <div className="relative flex py-2 items-center">
               <div className="flex-grow border-t border-zinc-800"></div>
-              <span className="flex-shrink-0 mx-4 text-zinc-600 text-xs uppercase">Or</span>
+              <span className="flex-shrink-0 mx-4 text-zinc-600 text-xs uppercase">{t('login.or')}</span>
               <div className="flex-grow border-t border-zinc-800"></div>
             </div>
 
             <Button variant="secondary" className="w-full h-12 justify-between px-6" onClick={() => setStep('email')}>
-              <span className="flex items-center gap-3"><Mail className="w-5 h-5 text-zinc-400" /> Continue with Email</span>
+              <span className="flex items-center gap-3"><Mail className="w-5 h-5 text-zinc-400" /> {t('login.continue.email')}</span>
               <ArrowRight className="w-4 h-4 text-zinc-500" />
             </Button>
 
             <Button variant="secondary" className="w-full h-12 justify-between px-6">
-              <span className="flex items-center gap-3"><Twitter className="w-5 h-5 text-blue-400" /> Continue with X</span>
+              <span className="flex items-center gap-3"><Twitter className="w-5 h-5 text-blue-400" /> {t('login.continue.x')}</span>
               <ArrowRight className="w-4 h-4 text-zinc-500" />
             </Button>
           </div>
@@ -203,36 +205,36 @@ export const Login: React.FC = () => {
         {step === 'email' && (
           <form onSubmit={handleEmailLogin} className="space-y-4">
             <Input 
-              label="Email Address" 
+              label={t('login.email.label')}
               type="email" 
-              placeholder="user@yourdomain.com" 
+              placeholder={t('login.email.placeholder')}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
               autoFocus
             />
             <Button type="submit" className="w-full" isLoading={loading}>
-              {loading ? 'Sending...' : 'Send Magic Link'}
+              {loading ? t('login.sending') : t('login.sendlink')}
             </Button>
-            <Button type="button" variant="ghost" className="w-full" onClick={() => setStep('methods')}>Back</Button>
+            <Button type="button" variant="ghost" className="w-full" onClick={() => setStep('methods')}>{t('login.back')}</Button>
           </form>
         )}
 
         {step === 'emailVerify' && (
           <form onSubmit={handleVerifyEmail} className="space-y-4">
             <Input
-              label="Verification Code"
+              label={t('login.code.label')}
               type="text"
-              placeholder="123456"
+              placeholder={t('login.code.placeholder')}
               value={code}
               onChange={(e) => setCode(e.target.value)}
               required
               autoFocus
             />
             <Button type="submit" className="w-full" isLoading={loading}>
-              {loading ? 'Verifying...' : 'Verify & Continue'}
+              {loading ? t('login.verifying') : t('login.verify')}
             </Button>
-            <Button type="button" variant="ghost" className="w-full" onClick={() => setStep('email')}>Back</Button>
+            <Button type="button" variant="ghost" className="w-full" onClick={() => setStep('email')}>{t('login.back')}</Button>
           </form>
         )}
 
@@ -242,20 +244,22 @@ export const Login: React.FC = () => {
               <CheckCircle2 className="w-16 h-16 text-emerald-500" />
             </div>
             <div className="text-center">
-              <h3 className="text-lg font-medium text-white">Almost there</h3>
+              <h3 className="text-lg font-medium text-white">{t('login.almost')}</h3>
               <p className="text-zinc-500 text-sm">
-                {address ? `Wallet ${address.slice(0,6)}...${address.slice(-4)} connected.` : 'Confirm your details to finish setup.'}
+                {address
+                  ? t('login.walletconnected.short', { short: `${address.slice(0, 6)}...${address.slice(-4)}` })
+                  : t('login.onboarding')}
               </p>
             </div>
             <Input 
-              label="Username" 
+              label={t('login.username')}
               defaultValue={
                 email ? email.split('@')[0] : 
                 address ? `0x${address.slice(2,8)}` : 'anon_dev'
               } 
             />
-            <Input label="Workspace Name (Optional)" placeholder="My Team" />
-            <Button className="w-full" onClick={handleCompleteOnboarding}>Enter Dashboard</Button>
+            <Input label={t('login.workspace')} placeholder="My Team" />
+            <Button className="w-full" onClick={handleCompleteOnboarding}>{t('login.enter')}</Button>
           </div>
         )}
       </Card>

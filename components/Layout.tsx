@@ -7,9 +7,11 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../App.tsx';
 import { Button } from './ui/Common.tsx';
+import { useI18n } from '../i18n.tsx';
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, logout } = useAuth();
+  const { t, locale, setLocale } = useI18n();
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
@@ -17,12 +19,12 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const isActive = (path: string) => location.pathname.startsWith(path);
 
   const navItems = [
-    { icon: LayoutDashboard, label: 'Overview', path: '/dashboard' },
-    { icon: Globe, label: 'Domains', path: '/domains' },
-    { icon: ShoppingBag, label: 'Orders', path: '/orders' },
-    { icon: Server, label: 'Sites', path: '/sites' },
-    { icon: CreditCard, label: 'Billing', path: '/billing' },
-    { icon: Settings, label: 'Settings', path: '/settings' },
+    { icon: LayoutDashboard, label: t('nav.overview'), path: '/dashboard' },
+    { icon: Globe, label: t('nav.domains'), path: '/domains' },
+    { icon: ShoppingBag, label: t('nav.orders'), path: '/orders' },
+    { icon: Server, label: t('nav.sites'), path: '/sites' },
+    { icon: CreditCard, label: t('nav.billing'), path: '/billing' },
+    { icon: Settings, label: t('nav.settings'), path: '/settings' },
   ];
 
   if (!user) {
@@ -33,15 +35,27 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           <div className="container flex h-14 max-w-7xl mx-auto items-center justify-between px-4">
             <Link to="/" className="flex items-center space-x-2 font-bold text-xl tracking-tight">
               <Terminal className="w-6 h-6 text-indigo-500" />
-              <span>LastPush</span>
+              <span>{t('app.name')}</span>
             </Link>
             <nav className="flex items-center gap-4">
-              <Link to="/docs" className="text-sm text-zinc-400 hover:text-white transition-colors">Docs</Link>
+              <Link to="/docs" className="text-sm text-zinc-400 hover:text-white transition-colors">{t('nav.docs')}</Link>
+              <select
+                className="bg-zinc-900 border border-zinc-700 text-xs text-zinc-300 rounded-md px-2 py-1"
+                value={locale}
+                onChange={(e) => setLocale(e.target.value as typeof locale)}
+                aria-label={t('layout.language')}
+              >
+                <option value="en">EN</option>
+                <option value="zh-CN">简体中文</option>
+                <option value="zh-TW">繁體中文</option>
+                <option value="ru">RU</option>
+                <option value="fr">FR</option>
+              </select>
               <Link to="/login">
-                <Button variant="ghost" size="sm">Sign In</Button>
+                <Button variant="ghost" size="sm">{t('nav.signin')}</Button>
               </Link>
               <Link to="/login">
-                <Button size="sm">Get Started</Button>
+                <Button size="sm">{t('nav.getstarted')}</Button>
               </Link>
             </nav>
           </div>
@@ -59,7 +73,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         <div className="flex h-14 items-center px-6 border-b border-zinc-800">
           <Link to="/dashboard" className="flex items-center space-x-2 font-bold text-xl tracking-tight">
             <Terminal className="w-6 h-6 text-indigo-500" />
-            <span>LastPush</span>
+            <span>{t('app.name')}</span>
           </Link>
         </div>
         
@@ -70,7 +84,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                 {user.handle ? user.handle[0].toUpperCase() : 'U'}
               </div>
               <div className="flex-1 overflow-hidden">
-                <p className="text-sm font-medium truncate">{user.handle || 'User'}</p>
+                <p className="text-sm font-medium truncate">{user.handle || t('layout.user')}</p>
                 <p className="text-xs text-zinc-500 truncate">{user.email || user.walletAddress}</p>
               </div>
             </div>
@@ -90,12 +104,12 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           <Link to="/support">
              <button className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-900 transition-colors">
               <HelpCircle className="w-4 h-4" />
-              <span>Support</span>
+              <span>{t('nav.support')}</span>
             </button>
           </Link>
           <button onClick={logout} className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-zinc-400 hover:text-red-400 rounded-lg hover:bg-red-500/10 transition-colors mt-1">
             <LogOut className="w-4 h-4" />
-            <span>Sign Out</span>
+            <span>{t('nav.signout')}</span>
           </button>
         </div>
       </aside>
@@ -108,7 +122,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
               {mobileMenuOpen ? <X /> : <Menu />}
             </button>
             <div className="hidden md:flex items-center text-sm text-zinc-500">
-              <span className="hover:text-zinc-300 cursor-pointer" onClick={() => navigate('/dashboard')}>Dashboard</span>
+              <span className="hover:text-zinc-300 cursor-pointer" onClick={() => navigate('/dashboard')}>{t('nav.dashboard')}</span>
               {location.pathname !== '/dashboard' && (
                 <>
                   <span className="mx-2">/</span>
@@ -118,13 +132,25 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
             </div>
           </div>
           <div className="flex items-center gap-3">
+             <select
+               className="hidden md:block bg-zinc-900 border border-zinc-700 text-xs text-zinc-300 rounded-md px-2 py-1"
+               value={locale}
+               onChange={(e) => setLocale(e.target.value as typeof locale)}
+               aria-label={t('layout.language')}
+             >
+               <option value="en">EN</option>
+               <option value="zh-CN">简体中文</option>
+               <option value="zh-TW">繁體中文</option>
+               <option value="ru">RU</option>
+               <option value="fr">FR</option>
+             </select>
              <Button size="sm" variant="outline" onClick={() => navigate('/domains/search')}>
                 <Search className="w-4 h-4 mr-2" />
-                Find Domain
+                {t('nav.finddomain')}
              </Button>
              <Button size="sm" onClick={() => navigate('/sites/new')}>
                 <Plus className="w-4 h-4 mr-2" />
-                New Site
+                {t('nav.newsite')}
              </Button>
           </div>
         </header>
