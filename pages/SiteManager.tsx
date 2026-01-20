@@ -16,7 +16,7 @@ export const NewSite: React.FC = () => {
   const [deploying, setDeploying] = useState(false);
   const [deployStatus, setDeployStatus] = useState<'upload' | 'building' | 'success'>('upload');
   const [deployedSiteId, setDeployedSiteId] = useState<string | null>(null);
-  const [logs, setLogs] = useState<string[]>([]);
+  const [countdown, setCountdown] = useState<number | null>(null);
   const [name, setName] = useState('');
   const [defaultDomains, setDefaultDomains] = useState<string[]>([]);
   const [userDomains, setUserDomains] = useState<string[]>([]);
@@ -53,11 +53,25 @@ export const NewSite: React.FC = () => {
   }, [domainChoice, domainPrefix]);
 
   useEffect(() => {
-    if (deployStatus === 'success') {
-      setDeployStatus('upload');
-      setDeployedSiteId(null);
+    if (!deploying) {
+      setCountdown(null);
+      return;
     }
-  }, [file, name, domainChoice, domainPrefix, deployStatus]);
+    setCountdown(60);
+    const timer = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev === null) return prev;
+        if (prev <= 1) {
+          clearInterval(timer);
+          setDeploying(false);
+          navigate('/sites');
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [deploying, navigate]);
 
   const handleCheckDomain = async () => {
     if (!domainPrefix.trim()) return;
@@ -91,7 +105,6 @@ export const NewSite: React.FC = () => {
     setDeploying(true);
     setDeployStatus('building');
     setDeployedSiteId(null);
-    setLogs([]);
 
     const form = new FormData();
     const derivedName = (() => {
@@ -113,14 +126,10 @@ export const NewSite: React.FC = () => {
 
     try {
       const res = await api.upload<{ siteId: string; deploymentId: string }>('/sites', form);
-      const logsRes = await api.get<{ logs: string[] }>(`/deployments/${res.deploymentId}/logs`).catch(() => ({ logs: [] }));
-      if (logsRes.logs.length > 0) setLogs(logsRes.logs);
       setDeployStatus('success');
       setDeployedSiteId(res.siteId);
     } catch (err) {
       alert((err as Error).message);
-    } finally {
-      setDeploying(false);
     }
   };
 
@@ -252,20 +261,16 @@ export const NewSite: React.FC = () => {
               {t('sites.deploy.deploy')}
             </Button>
           ) : null}
-          {deployStatus === 'building' && (
-            <div className="rounded-lg bg-zinc-950 p-4 font-mono text-xs space-y-1 h-48 overflow-y-auto border border-zinc-800">
-              {logs.length === 0 && (
-                <div className="text-zinc-500">{t('sites.deploy.waiting')}</div>
+          {deploying && (
+            <div className="rounded-lg border border-zinc-800 bg-zinc-900/60 p-6 flex flex-col items-center gap-3">
+              <div className="h-10 w-10 rounded-full border-2 border-indigo-400 border-t-transparent animate-spin" />
+              <div className="text-zinc-200 font-medium">{t('sites.deploy.building')}</div>
+              {countdown !== null && (
+                <div className="text-sm text-zinc-400">{t('sites.deploy.countdown', { seconds: countdown })}</div>
               )}
-              {logs.map((log, i) => (
-                <div key={i} className="text-zinc-300">
-                  <span className="text-zinc-600 mr-2">{'>'}</span>
-                  {log}
-                </div>
-              ))}
             </div>
           )}
-          {deployStatus === 'success' && (
+          {deployStatus === 'success' && countdown === 0 && (
             <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4 flex flex-col gap-3">
               <div className="text-emerald-400 font-semibold">{t('sites.deploy.success')}</div>
               {deployedSiteId && (
@@ -347,9 +352,12 @@ export const SiteList: React.FC = () => {
 export const SiteDetail: React.FC = () => {
   const { t } = useI18n();
   const { id } = useParams();
+  const navigate = useNavigate();
   const [site, setSite] = useState<Site | null>(null);
   const [deployments, setDeployments] = useState<Deployment[]>([]);
   const [domains, setDomains] = useState<{ domain: string; type: string }[]>([]);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteCountdown, setDeleteCountdown] = useState<number | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -363,6 +371,45 @@ export const SiteDetail: React.FC = () => {
       .then((res) => setDomains(res.items))
       .catch(() => null);
   }, [id]);
+
+  const handleScrollToSettings = () => {
+    const target = document.getElementById('site-settings');
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
+  useEffect(() => {
+    if (!deleting) {
+      setDeleteCountdown(null);
+      return;
+    }
+    setDeleteCountdown(30);
+    const timer = setInterval(() => {
+      setDeleteCountdown((prev) => {
+        if (prev === null) return prev;
+        if (prev <= 1) {
+          clearInterval(timer);
+          setDeleting(false);
+          navigate('/sites');
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [deleting, navigate]);
+
+  const handleDeleteSite = async () => {
+    if (!id || deleting) return;
+    if (!confirm(t('sites.detail.deleteconfirm'))) return;
+    setDeleting(true);
+    try {
+      await api.del(`/sites/${id}`);
+    } catch (err) {
+      alert((err as Error).message);
+    }
+  };
 
   if (!site) {
     return <div className="text-zinc-400">{t('sites.detail.loading')}</div>;
@@ -380,8 +427,6 @@ export const SiteDetail: React.FC = () => {
            </h1>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline">{t('sites.detail.settings')}</Button>
-          <Button>{t('sites.detail.createdeploy')}</Button>
         </div>
       </div>
 
@@ -436,6 +481,45 @@ export const SiteDetail: React.FC = () => {
         </div>
 
         <div className="space-y-6">
+           <div id="site-settings">
+             <Card title={t('sites.detail.settings')}>
+               <div className="space-y-3 text-sm text-zinc-400">
+                 <div className="flex justify-between">
+                   <span>{t('sites.detail.name')}</span>
+                   <span className="text-zinc-200">{site.name}</span>
+                 </div>
+                 <div className="flex justify-between">
+                   <span>{t('sites.detail.domain')}</span>
+                   <span className="text-zinc-200">{site.domain}</span>
+                 </div>
+                 <div className="flex justify-between">
+                   <span>{t('sites.detail.framework')}</span>
+                   <span className="text-zinc-200">{site.framework}</span>
+                 </div>
+                 <div className="flex justify-between">
+                   <span>{t('sites.detail.lastdeploy')}</span>
+                   <span className="text-zinc-200">{new Date(site.lastDeployedAt).toLocaleString()}</span>
+                 </div>
+                 <Button
+                   variant="danger"
+                   className="w-full mt-2"
+                   onClick={handleDeleteSite}
+                   disabled={deleting}
+                 >
+                   {deleting ? t('sites.detail.deleting') : t('sites.detail.deletesite')}
+                 </Button>
+                 {deleting && (
+                   <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-4 flex flex-col items-center gap-3">
+                     <div className="h-8 w-8 rounded-full border-2 border-red-400 border-t-transparent animate-spin" />
+                     <div className="text-red-300 font-medium">{t('sites.detail.deleting')}</div>
+                     {deleteCountdown !== null && (
+                       <div className="text-xs text-red-200/80">{t('sites.detail.deletecountdown', { seconds: deleteCountdown })}</div>
+                     )}
+                   </div>
+                 )}
+               </div>
+             </Card>
+           </div>
            <Card title={t('sites.detail.domains')}>
              <div className="space-y-3">
                {domains.map((d) => (
@@ -448,13 +532,6 @@ export const SiteDetail: React.FC = () => {
              </div>
            </Card>
            
-           <Card title={t('sites.detail.quick')}>
-             <div className="space-y-2">
-               <Button variant="ghost" className="w-full justify-start text-zinc-400">{t('sites.detail.logs')}</Button>
-               <Button variant="ghost" className="w-full justify-start text-zinc-400">{t('sites.detail.env')}</Button>
-               <Button variant="ghost" className="w-full justify-start text-zinc-400 hover:text-red-400">{t('sites.detail.delete')}</Button>
-             </div>
-           </Card>
         </div>
       </div>
     </div>
