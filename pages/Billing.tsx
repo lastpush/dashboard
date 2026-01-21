@@ -160,6 +160,13 @@ export const Billing: React.FC = () => {
     setTimeout(() => setCopyStatus(null), 2000);
   };
 
+  const formatCountdown = (totalSeconds: number | null) => {
+    if (totalSeconds === null) return '';
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-white">{t('billing.title')}</h1>
@@ -343,7 +350,7 @@ export const Billing: React.FC = () => {
                     <div>{t('billing.topup.network', { network: chainOptions.find((c) => c.id === paymentInfo.chainId)?.label || '' })}</div>
                     {orderCountdown !== null && (
                       <div className="text-xs text-amber-400">
-                        {t('billing.topup.ordercountdown', { seconds: orderCountdown })}
+                        {t('billing.topup.ordercountdown', { seconds: formatCountdown(orderCountdown) })}
                       </div>
                     )}
                   </div>
@@ -362,7 +369,7 @@ export const Billing: React.FC = () => {
                   {confirmingPaid && confirmCountdown !== null && (
                     <div className="rounded-lg border border-zinc-800 bg-zinc-900/60 p-4 flex flex-col items-center gap-3">
                       <div className="h-8 w-8 rounded-full border-2 border-indigo-400 border-t-transparent animate-spin" />
-                      <div className="text-sm text-zinc-300">{t('billing.topup.confirmcountdown', { seconds: confirmCountdown })}</div>
+                      <div className="text-sm text-zinc-300">{t('billing.topup.confirmcountdown', { seconds: formatCountdown(confirmCountdown) })}</div>
                     </div>
                   )}
                 </div>
