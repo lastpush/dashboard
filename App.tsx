@@ -20,13 +20,21 @@ import { api } from './api.ts';
 import '@rainbow-me/rainbowkit/styles.css';
 import { getDefaultConfig, RainbowKitProvider, darkTheme } from '@rainbow-me/rainbowkit';
 import { WagmiProvider } from 'wagmi';
-import { mainnet, polygon, optimism, arbitrum, base, bsc } from 'wagmi/chains';
+import { mainnet, polygon, optimism, arbitrum, bsc } from 'wagmi/chains';
+import { http } from 'viem';
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
+
+const supportedChains = [mainnet, polygon, optimism, arbitrum, bsc].filter(Boolean);
+const transports = supportedChains.reduce<Record<number, ReturnType<typeof http>>>((acc, chain) => {
+  acc[chain.id] = http();
+  return acc;
+}, {});
 
 const config = getDefaultConfig({
   appName: 'LastPush',
   projectId: '93e171735160a370b02444690462f48f',
-  chains: [mainnet, polygon, optimism, arbitrum, base, bsc],
+  chains: supportedChains,
+  transports,
   ssr: false,
 });
 
@@ -115,6 +123,13 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 };
 
 const App: React.FC = () => {
+  useEffect(() => {
+    if (window.location.hash) return;
+    if (window.location.pathname === '/login' && window.location.search) {
+      window.location.hash = `/login${window.location.search}`;
+    }
+  }, []);
+
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>

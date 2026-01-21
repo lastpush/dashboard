@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Card, Button, Input } from '../components/ui/Common.tsx';
 import { Mail, Twitter, ArrowRight, CheckCircle2, Wallet } from 'lucide-react';
@@ -21,6 +21,7 @@ export const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [challengeId, setChallengeId] = useState('');
   const [code, setCode] = useState('');
+  const handledTokenRef = useRef(false);
 
   // Wagmi Hooks
   const { address, isConnected } = useAccount();
@@ -107,6 +108,40 @@ export const Login: React.FC = () => {
     }
     navigate(redirect);
   };
+
+  const handleXLogin = () => {
+    const base = import.meta.env.VITE_API_BASE || 'https://api.lastpush.xyz';
+    const callbackUrl = `${window.location.origin}/#/login`;
+    const target = `${base}/x_login?redirect=${encodeURIComponent(redirect)}&callback=${encodeURIComponent(callbackUrl)}`;
+    window.location.href = target;
+  };
+
+  useEffect(() => {
+    const token = searchParams.get('token');
+    if (!token || handledTokenRef.current || user) return;
+    handledTokenRef.current = true;
+    const run = async () => {
+      let success = false;
+      try {
+        const res = await api.post<{ token: string; user: User }>('/auth/login/x/verify', { token });
+        setSession(res.token, res.user);
+        success = true;
+      } catch {
+        try {
+          localStorage.setItem('lastpush_token', token);
+          const me = await api.get<User>('/users/me');
+          setSession(token, me);
+          success = true;
+        } catch {
+          localStorage.removeItem('lastpush_token');
+        }
+      }
+      if (success) {
+        navigate(redirect, { replace: true });
+      }
+    };
+    run();
+  }, [searchParams, navigate, setSession, user, redirect]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-zinc-950 p-4">
@@ -199,7 +234,7 @@ export const Login: React.FC = () => {
               <ArrowRight className="w-4 h-4 text-zinc-500" />
             </Button>
 
-            <Button variant="secondary" className="w-full h-12 justify-between px-6">
+            <Button variant="secondary" className="w-full h-12 justify-between px-6" onClick={handleXLogin}>
               <span className="flex items-center gap-3"><Twitter className="w-5 h-5 text-blue-400" /> {t('login.continue.x')}</span>
               <ArrowRight className="w-4 h-4 text-zinc-500" />
             </Button>
