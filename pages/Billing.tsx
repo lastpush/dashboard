@@ -2,50 +2,36 @@ import React, { useEffect, useState } from 'react';
 import { Card, Button, Badge } from '../components/ui/Common.tsx';
 import { CreditCard, Download } from 'lucide-react';
 import { api } from '../api.ts';
-import { ConnectButton } from '@rainbow-me/rainbowkit';
-import { useAccount, useSignMessage, useSwitchChain, useWriteContract } from 'wagmi';
-import { parseUnits } from 'viem';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useI18n } from '../i18n.tsx';
 
-const erc20Abi = [
-  {
-    type: 'function',
-    name: 'transfer',
-    stateMutability: 'nonpayable',
-    inputs: [
-      { name: 'to', type: 'address' },
-      { name: 'amount', type: 'uint256' },
-    ],
-    outputs: [{ name: '', type: 'bool' }],
-  },
-];
-
 const chainOptions = [
-  { id: 56, label: 'BSC' },
-  { id: 137, label: 'POLYGON' },
-  { id: 8453, label: 'BASE' },
+  { id: 1, label: 'ETH', tokens: ['USDT', 'USDC'] },
+  { id: 56, label: 'BSC', tokens: ['USDT', 'USDC'] },
+  { id: 42161, label: 'ARB', tokens: ['USDT', 'USDC'] },
+  { id: 137, label: 'POLYGON', tokens: ['USDC'] },
+  { id: 501, label: 'SOLANA', tokens: ['USDT', 'USDC'] },
+  { id: 195, label: 'TRX', tokens: ['USDT'] },
+  { id: 100060, label: 'TON', tokens: ['USDT'] },
 ];
 
 export const Billing: React.FC = () => {
   const { t } = useI18n();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [topUpAmount, setTopUpAmount] = useState('10');
-  const [isProcessing, setIsProcessing] = useState(false);
   const [balance, setBalance] = useState(0);
   const [usage, setUsage] = useState({ bandwidthGB: 0, bandwidthLimitGB: 0, buildMinutes: 0, buildMinutesLimit: 0 });
   const [transactions, setTransactions] = useState<{ id: string; date: string; description: string; status: string; amount: number; invoiceUrl?: string }[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<{ id: string; brand: string; last4: string; expiresAt: string }[]>([]);
   const [showTopUp, setShowTopUp] = useState(false);
   const [selectedChainId, setSelectedChainId] = useState<number | null>(null);
-  const [paymentInfo, setPaymentInfo] = useState<{ paymentId: string; depositAddress: string; tokenAddress: string; decimals: number } | null>(null);
+  const [selectedToken, setSelectedToken] = useState<string>('USDT');
+  const [paymentInfo, setPaymentInfo] = useState<{ orderId: string; depositAddress: string; chainId: number; token: string; amount: number } | null>(null);
   const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
   const [loadingPayment, setLoadingPayment] = useState(false);
-
-  const { address, isConnected, chainId } = useAccount();
-  const { switchChainAsync } = useSwitchChain();
-  const { signMessageAsync } = useSignMessage();
-  const { writeContractAsync } = useWriteContract();
+  const [confirmingPaid, setConfirmingPaid] = useState(false);
+  const [confirmCountdown, setConfirmCountdown] = useState<number | null>(null);
 
   useEffect(() => {
     api.get<{ balance: number }>('/billing/balance')
@@ -69,28 +55,42 @@ export const Billing: React.FC = () => {
   }, [searchParams]);
 
   useEffect(() => {
-    if (!showTopUp) return;
-    if (!isConnected || !chainId) {
-      setSelectedChainId(null);
-      setPaymentInfo(null);
+    if (!selectedChainId) return;
+    const chain = chainOptions.find((c) => c.id === selectedChainId);
+    if (!chain) return;
+    if (!chain.tokens.includes(selectedToken)) {
+      setSelectedToken(chain.tokens[0]);
+    }
+  }, [selectedChainId, selectedToken]);
+
+  useEffect(() => {
+    if (!confirmingPaid) {
+      setConfirmCountdown(null);
       return;
     }
-    const supported = chainOptions.some((c) => c.id === chainId);
-    if (!supported) {
-      setSelectedChainId(null);
-      setPaymentInfo(null);
-      return;
-    }
-    if (selectedChainId !== chainId) {
-      handleSelectChain(chainId);
-    }
-  }, [showTopUp, isConnected, chainId, selectedChainId]);
+    setConfirmCountdown(30);
+    const timer = setInterval(() => {
+      setConfirmCountdown((prev) => {
+        if (prev === null) return prev;
+        if (prev <= 1) {
+          clearInterval(timer);
+          setConfirmingPaid(false);
+          navigate('/domains');
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [confirmingPaid, navigate]);
 
   const handleOpenTopUp = () => {
     setShowTopUp(true);
     setSelectedChainId(null);
+    setSelectedToken('USDT');
     setPaymentInfo(null);
     setPaymentStatus(null);
+    setConfirmingPaid(false);
   };
 
   const handleSelectChain = async (id: number) => {
@@ -98,23 +98,19 @@ export const Billing: React.FC = () => {
     setSelectedChainId(id);
     setPaymentInfo(null);
     setPaymentStatus(null);
-    if (isConnected && chainId !== id) {
-      try {
-        await switchChainAsync({ chainId: id });
-      } catch {
-        // ignore
-      }
-    }
+  };
 
+  const handlePlaceOrder = async () => {
+    if (!selectedChainId || !selectedToken) return;
     setLoadingPayment(true);
     setPaymentStatus(null);
     try {
-      const res = await api.post<{ paymentId: string; depositAddress: string; tokenAddress: string; decimals: number }>(
-        '/billing/top-up/crypto/init',
+      const res = await api.post<{ orderId: string; depositAddress: string; chainId: number; token: string; amount: number }>(
+        '/billing/top-up/crypto/order',
         {
           amount: Number(topUpAmount),
-          chainId: id,
-          token: 'USDT',
+          chainId: selectedChainId,
+          token: selectedToken,
         }
       );
       setPaymentInfo(res);
@@ -125,54 +121,9 @@ export const Billing: React.FC = () => {
     }
   };
 
-  const handleSendTransfer = async () => {
-    if (!paymentInfo || !address || !selectedChainId) return;
-    setIsProcessing(true);
-    setPaymentStatus(null);
-    try {
-      if (chainId !== selectedChainId) {
-        await switchChainAsync({ chainId: selectedChainId });
-      }
-      const amount = parseUnits(topUpAmount, paymentInfo.decimals);
-      const txHash = await writeContractAsync({
-        address: paymentInfo.tokenAddress as `0x${string}`,
-        abi: erc20Abi,
-        functionName: 'transfer',
-        args: [paymentInfo.depositAddress as `0x${string}`, amount],
-      });
-
-      const message = [
-        'LastPush TopUp',
-        `paymentId:${paymentInfo.paymentId}`,
-        `chainId:${selectedChainId}`,
-        `from:${address}`,
-        `to:${paymentInfo.depositAddress}`,
-        `token:${paymentInfo.tokenAddress}`,
-        `amount:${topUpAmount}`,
-        `txHash:${txHash}`,
-      ].join('\n');
-
-      const signature = await signMessageAsync({ message });
-
-      await api.post('/billing/top-up/crypto/confirm', {
-        paymentId: paymentInfo.paymentId,
-        chainId: selectedChainId,
-        from: address,
-        to: paymentInfo.depositAddress,
-        tokenAddress: paymentInfo.tokenAddress,
-        amount: Number(topUpAmount),
-        txHash,
-        signature,
-        message,
-      });
-
-      setPaymentStatus('Payment submitted.');
-      setShowTopUp(false);
-    } catch (err) {
-      setPaymentStatus((err as Error).message);
-    } finally {
-      setIsProcessing(false);
-    }
+  const handleConfirmPaid = () => {
+    if (!paymentInfo) return;
+    setConfirmingPaid(true);
   };
 
   return (
@@ -196,7 +147,7 @@ export const Billing: React.FC = () => {
                ))}
              </div>
              <div className="mt-4 pt-4 border-t border-zinc-800/50">
-               <Button className="w-full" onClick={handleOpenTopUp} isLoading={isProcessing}>{t('billing.addfunds', { amount: topUpAmount })}</Button>
+               <Button className="w-full" onClick={handleOpenTopUp}>{t('billing.addfunds', { amount: topUpAmount })}</Button>
              </div>
           </div>
         </Card>
@@ -293,12 +244,7 @@ export const Billing: React.FC = () => {
               </button>
             </div>
 
-            <div className="space-y-4">
-              <div>
-                <div className="text-xs font-medium text-zinc-400 mb-2">{t('billing.topup.connect')}</div>
-                <ConnectButton />
-              </div>
-
+              <div className="space-y-4">
               <div>
                 <div className="text-xs font-medium text-zinc-400 mb-2">{t('billing.topup.chain')}</div>
                 <div className="flex flex-wrap gap-2">
@@ -315,35 +261,73 @@ export const Billing: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex items-center gap-3">
-                {loadingPayment && <span className="text-xs text-zinc-500">{t('billing.topup.loading')}</span>}
-                {paymentInfo && (
-                  <span className="text-xs text-zinc-500">{t('billing.topup.deposit', { address: paymentInfo.depositAddress })}</span>
-                )}
+              <div>
+                <div className="text-xs font-medium text-zinc-400 mb-2">{t('billing.topup.token')}</div>
+                <div className="flex flex-wrap gap-2">
+                  {(chainOptions.find((c) => c.id === selectedChainId)?.tokens || ['USDT']).map((token) => (
+                    <Button
+                      key={token}
+                      size="sm"
+                      variant={selectedToken === token ? 'primary' : 'outline'}
+                      onClick={() => {
+                        setSelectedToken(token);
+                        setPaymentInfo(null);
+                        setPaymentStatus(null);
+                      }}
+                    >
+                      {token}
+                    </Button>
+                  ))}
+                </div>
               </div>
 
+              <div className="flex items-center gap-3">
+                {loadingPayment && <span className="text-xs text-zinc-500">{t('billing.topup.loading')}</span>}
+              </div>
+
+              {!paymentInfo && (
+                <Button
+                  className="w-full"
+                  disabled={!selectedChainId || !selectedToken || loadingPayment}
+                  isLoading={loadingPayment}
+                  onClick={handlePlaceOrder}
+                >
+                  {t('billing.topup.placeorder')}
+                </Button>
+              )}
+
               {paymentInfo && (
-                <div className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-4 text-sm text-zinc-400 space-y-2">
-                  <div>{t('billing.topup.token')}</div>
-                  <div>{t('billing.topup.amount', { amount: topUpAmount })}</div>
-                  <div>{t('billing.topup.network', { network: chainOptions.find((c) => c.id === selectedChainId)?.label || '' })}</div>
+                <div className="space-y-4">
+                  <div className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-4 text-sm text-zinc-400 space-y-2">
+                    <div>{t('billing.topup.deposit', { address: paymentInfo.depositAddress })}</div>
+                    <div>{t('billing.topup.tokenlabel', { token: paymentInfo.token })}</div>
+                    <div>{t('billing.topup.amount', { amount: paymentInfo.amount })}</div>
+                    <div>{t('billing.topup.network', { network: chainOptions.find((c) => c.id === paymentInfo.chainId)?.label || '' })}</div>
+                  </div>
+                  <div className="flex items-center justify-center">
+                    <img
+                      alt={t('billing.topup.qr')}
+                      className="h-40 w-40 rounded-lg border border-zinc-800 bg-zinc-950/60"
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(
+                        `${paymentInfo.token}:${paymentInfo.amount}@${paymentInfo.depositAddress}`
+                      )}`}
+                    />
+                  </div>
+                  <Button className="w-full" onClick={handleConfirmPaid} disabled={confirmingPaid}>
+                    {confirmingPaid ? t('billing.topup.confirming') : t('billing.topup.confirm')}
+                  </Button>
+                  {confirmingPaid && confirmCountdown !== null && (
+                    <div className="rounded-lg border border-zinc-800 bg-zinc-900/60 p-4 flex flex-col items-center gap-3">
+                      <div className="h-8 w-8 rounded-full border-2 border-indigo-400 border-t-transparent animate-spin" />
+                      <div className="text-sm text-zinc-300">{t('billing.topup.confirmcountdown', { seconds: confirmCountdown })}</div>
+                    </div>
+                  )}
                 </div>
               )}
 
               {paymentStatus && (
                 <div className="text-xs text-amber-400">{paymentStatus}</div>
               )}
-
-              <div className="flex items-center gap-3">
-                <Button
-                  className="w-full"
-                  disabled={!isConnected || !paymentInfo}
-                  isLoading={isProcessing}
-                  onClick={handleSendTransfer}
-                >
-                  {t('billing.topup.send')}
-                </Button>
-              </div>
             </div>
           </div>
         </div>
