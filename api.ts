@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_BASE || 'https://api.lastpush.xyz/api/v1';
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://127.0.0.1:4000/api/v1'//'https://api.lastpush.xyz/api/v1';
 
 const getToken = () => localStorage.getItem('lastpush_token');
 

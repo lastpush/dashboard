@@ -32,6 +32,8 @@ export const Billing: React.FC = () => {
   const [loadingPayment, setLoadingPayment] = useState(false);
   const [confirmingPaid, setConfirmingPaid] = useState(false);
   const [confirmCountdown, setConfirmCountdown] = useState<number | null>(null);
+  const [orderCountdown, setOrderCountdown] = useState<number | null>(null);
+  const [copyStatus, setCopyStatus] = useState<string | null>(null);
 
   useEffect(() => {
     api.get<{ balance: number }>('/billing/balance')
@@ -84,6 +86,25 @@ export const Billing: React.FC = () => {
     return () => clearInterval(timer);
   }, [confirmingPaid, navigate]);
 
+  useEffect(() => {
+    if (!paymentInfo) {
+      setOrderCountdown(null);
+      return;
+    }
+    setOrderCountdown(1800);
+    const timer = setInterval(() => {
+      setOrderCountdown((prev) => {
+        if (prev === null) return prev;
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [paymentInfo?.orderId]);
+
   const handleOpenTopUp = () => {
     setShowTopUp(true);
     setSelectedChainId(null);
@@ -91,6 +112,8 @@ export const Billing: React.FC = () => {
     setPaymentInfo(null);
     setPaymentStatus(null);
     setConfirmingPaid(false);
+    setOrderCountdown(null);
+    setCopyStatus(null);
   };
 
   const handleSelectChain = async (id: number) => {
@@ -126,6 +149,17 @@ export const Billing: React.FC = () => {
     setConfirmingPaid(true);
   };
 
+  const handleCopyAddress = async () => {
+    if (!paymentInfo) return;
+    try {
+      await navigator.clipboard.writeText(paymentInfo.depositAddress);
+      setCopyStatus(t('billing.topup.copied'));
+    } catch {
+      setCopyStatus(t('billing.topup.copyfailed'));
+    }
+    setTimeout(() => setCopyStatus(null), 2000);
+  };
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-white">{t('billing.title')}</h1>
@@ -136,7 +170,7 @@ export const Billing: React.FC = () => {
              <h3 className="text-zinc-400 text-sm font-medium">{t('billing.balance')}</h3>
              <div className="text-4xl font-bold text-white mt-2">${balance.toFixed(2)}</div>
              <div className="mt-4 flex gap-2">
-               {['10', '50', '100'].map(amt => (
+               {['3', '10', '20', '100'].map(amt => (
                  <button 
                   key={amt}
                   onClick={() => setTopUpAmount(amt)}
@@ -299,10 +333,19 @@ export const Billing: React.FC = () => {
               {paymentInfo && (
                 <div className="space-y-4">
                   <div className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-4 text-sm text-zinc-400 space-y-2">
-                    <div>{t('billing.topup.deposit', { address: paymentInfo.depositAddress })}</div>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="break-all">{t('billing.topup.deposit', { address: paymentInfo.depositAddress })}</span>
+                      <Button size="sm" variant="outline" onClick={handleCopyAddress}>{t('billing.topup.copy')}</Button>
+                    </div>
+                    {copyStatus && <div className="text-xs text-emerald-400">{copyStatus}</div>}
                     <div>{t('billing.topup.tokenlabel', { token: paymentInfo.token })}</div>
                     <div>{t('billing.topup.amount', { amount: paymentInfo.amount })}</div>
                     <div>{t('billing.topup.network', { network: chainOptions.find((c) => c.id === paymentInfo.chainId)?.label || '' })}</div>
+                    {orderCountdown !== null && (
+                      <div className="text-xs text-amber-400">
+                        {t('billing.topup.ordercountdown', { seconds: orderCountdown })}
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center justify-center">
                     <img
