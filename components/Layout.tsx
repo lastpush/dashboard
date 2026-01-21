@@ -1,13 +1,14 @@
-import React from 'react';
+﻿import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { 
-  LayoutDashboard, Globe, Server, CreditCard, Settings, 
-  LogOut, Plus, Search, Terminal, Wallet, HelpCircle,
+import {
+  LayoutDashboard, Globe, Server, CreditCard, Settings,
+  LogOut, Plus, Search, Terminal, HelpCircle,
   Menu, X, ShoppingBag
 } from 'lucide-react';
 import { useAuth } from '../App.tsx';
 import { Button } from './ui/Common.tsx';
 import { useI18n } from '../i18n.tsx';
+import { ConnectButton } from '@rainbow-me/rainbowkit';
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, logout } = useAuth();
@@ -76,7 +77,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
             <span>{t('app.name')}</span>
           </Link>
         </div>
-        
+
         <div className="p-4 space-y-1">
           <div className="mb-6 px-2">
             <div className="flex items-center gap-3 p-2 rounded-lg bg-zinc-900 border border-zinc-800">
@@ -100,9 +101,12 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           ))}
         </div>
 
-        <div className="absolute bottom-4 left-4 right-4">
+        <div className="absolute bottom-4 left-4 right-4 space-y-2">
+          <div className="rounded-lg border border-zinc-800 bg-zinc-900/60 p-2">
+            <ConnectButton />
+          </div>
           <Link to="/support">
-             <button className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-900 transition-colors">
+            <button className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-900 transition-colors">
               <HelpCircle className="w-4 h-4" />
               <span>{t('nav.support')}</span>
             </button>
@@ -132,29 +136,29 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
             </div>
           </div>
           <div className="flex items-center gap-3">
-             <select
-               className="hidden md:block bg-zinc-900 border border-zinc-700 text-xs text-zinc-300 rounded-md px-2 py-1"
-               value={locale}
-               onChange={(e) => setLocale(e.target.value as typeof locale)}
-               aria-label={t('layout.language')}
-             >
-               <option value="en">EN</option>
-               <option value="zh-CN">简体中文</option>
-               <option value="zh-TW">繁體中文</option>
-               <option value="ru">RU</option>
-               <option value="fr">FR</option>
-             </select>
-             <Button size="sm" variant="outline" onClick={() => navigate('/domains/search')}>
-                <Search className="w-4 h-4 mr-2" />
-                {t('nav.finddomain')}
-             </Button>
-             <Button size="sm" onClick={() => navigate('/sites/new')}>
-                <Plus className="w-4 h-4 mr-2" />
-                {t('nav.newsite')}
-             </Button>
+            <select
+              className="hidden md:block bg-zinc-900 border border-zinc-700 text-xs text-zinc-300 rounded-md px-2 py-1"
+              value={locale}
+              onChange={(e) => setLocale(e.target.value as typeof locale)}
+              aria-label={t('layout.language')}
+            >
+              <option value="en">EN</option>
+              <option value="zh-CN">简体中文</option>
+              <option value="zh-TW">繁體中文</option>
+              <option value="ru">RU</option>
+              <option value="fr">FR</option>
+            </select>
+            <Button size="sm" variant="outline" onClick={() => navigate('/domains/search')}>
+              <Search className="w-4 h-4 mr-2" />
+              {t('nav.finddomain')}
+            </Button>
+            <Button size="sm" onClick={() => navigate('/sites/new')}>
+              <Plus className="w-4 h-4 mr-2" />
+              {t('nav.newsite')}
+            </Button>
           </div>
         </header>
-        
+
         <main className="flex-1 p-6 max-w-6xl mx-auto w-full animate-in fade-in duration-500">
           {children}
         </main>

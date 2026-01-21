@@ -10,7 +10,7 @@ import { User } from '../types.ts';
 import { useI18n } from '../i18n.tsx';
 
 export const Login: React.FC = () => {
-  const { setSession, updateUser } = useAuth();
+  const { setSession, updateUser, user } = useAuth();
   const { t } = useI18n();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -29,6 +29,10 @@ export const Login: React.FC = () => {
 
   // Handle Wallet Login Sequence
   useEffect(() => {
+    if (user) {
+      navigate('/dashboard');
+      return;
+    }
     const handleWalletAuth = async () => {
       if (isConnected && address && step === 'methods') {
         try {
@@ -52,7 +56,7 @@ export const Login: React.FC = () => {
     };
 
     handleWalletAuth();
-  }, [isConnected, address, step, signMessageAsync, disconnect]);
+  }, [isConnected, address, step, signMessageAsync, disconnect, user, navigate]);
 
 
   const handleEmailLogin = async (e: React.FormEvent) => {
@@ -82,7 +86,7 @@ export const Login: React.FC = () => {
         code,
       });
       setSession(verify.token, verify.user);
-      setStep('onboarding');
+      navigate('/dashboard');
     } catch (err) {
       alert((err as Error).message);
     } finally {
