@@ -3,8 +3,8 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Card, Button, Input } from '../components/ui/Common.tsx';
 import { Mail, Twitter, ArrowRight, CheckCircle2, Wallet } from 'lucide-react';
 import { useAuth } from '../App.tsx';
-import { ConnectButton } from '@rainbow-me/rainbowkit';
-import { useAccount, useSignMessage, useDisconnect } from 'wagmi';
+import { useAccount, useConnect, useSignMessage, useDisconnect } from 'wagmi';
+import { injected } from 'wagmi/connectors';
 import { api } from '../api.ts';
 import { User } from '../types.ts';
 import { useI18n } from '../i18n.tsx';
@@ -15,6 +15,7 @@ export const Login: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const redirect = searchParams.get('redirect') || '/dashboard';
+  const callbackRedirect = '/dashboard';
   
   const [step, setStep] = useState<'methods' | 'email' | 'emailVerify' | 'onboarding'>('methods');
   const [email, setEmail] = useState('');
@@ -25,6 +26,7 @@ export const Login: React.FC = () => {
 
   // Wagmi Hooks
   const { address, isConnected } = useAccount();
+  const { connect, isPending } = useConnect();
   const { signMessageAsync } = useSignMessage();
   const { disconnect } = useDisconnect();
 
@@ -117,7 +119,11 @@ export const Login: React.FC = () => {
   };
 
   useEffect(() => {
-    const token = searchParams.get('token');
+    const hashQuery = window.location.hash.includes('?') ? window.location.hash.split('?')[1] : '';
+    const token =
+      searchParams.get('token') ||
+      new URLSearchParams(window.location.search).get('token') ||
+      new URLSearchParams(hashQuery).get('token');
     if (!token || handledTokenRef.current || user) return;
     handledTokenRef.current = true;
     const run = async () => {
@@ -137,11 +143,11 @@ export const Login: React.FC = () => {
         }
       }
       if (success) {
-        navigate(redirect, { replace: true });
+        navigate(callbackRedirect, { replace: true });
       }
     };
     run();
-  }, [searchParams, navigate, setSession, user, redirect]);
+  }, [searchParams, navigate, setSession, user, callbackRedirect]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-zinc-950 p-4">
@@ -153,74 +159,28 @@ export const Login: React.FC = () => {
 
         {step === 'methods' && (
           <div className="space-y-4">
-            <div className="w-full">
-              <ConnectButton.Custom>
-                {({
-                  account,
-                  chain,
-                  openAccountModal,
-                  openChainModal,
-                  openConnectModal,
-                  authenticationStatus,
-                  mounted,
-                }) => {
-                  const ready = mounted && authenticationStatus !== 'loading';
-                  const connected =
-                    ready &&
-                    account &&
-                    chain &&
-                    (!authenticationStatus ||
-                      authenticationStatus === 'authenticated');
-
-                  return (
-                    <div
-                      {...(!ready && {
-                        'aria-hidden': true,
-                        'style': {
-                          opacity: 0,
-                          pointerEvents: 'none',
-                          userSelect: 'none',
-                        },
-                      })}
-                    >
-                      {(() => {
-                        if (!connected) {
-                          return (
-                            <Button 
-                              variant="secondary" 
-                              className="w-full h-12 justify-between px-6" 
-                              onClick={openConnectModal}
-                            >
-                              <span className="flex items-center gap-3">
-                                <Wallet className="w-5 h-5 text-indigo-400" />
-                                {t('login.wallet')}
-                              </span>
-                              <ArrowRight className="w-4 h-4 text-zinc-500" />
-                            </Button>
-                          );
-                        }
-
-                        if (chain.unsupported) {
-                          return (
-                             <Button variant="danger" className="w-full" onClick={openChainModal}>
-                                {t('login.wrongnetwork')}
-                             </Button>
-                          );
-                        }
-
-                        return (
-                          <div className="text-center space-y-2">
-                             <div className="text-zinc-400 text-sm">{t('login.walletconnected')}</div>
-                             <Button variant="outline" className="w-full font-mono" onClick={openAccountModal}>
-                               {account.displayName}
-                             </Button>
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  );
-                }}
-              </ConnectButton.Custom>
+            <div className="w-full space-y-2">
+              {!isConnected ? (
+                <Button 
+                  variant="secondary"
+                  className="w-full h-12 justify-between px-6"
+                  onClick={() => connect({ connector: injected() })}
+                  isLoading={isPending}
+                >
+                  <span className="flex items-center gap-3">
+                    <Wallet className="w-5 h-5 text-indigo-400" />
+                    {t('login.wallet')}
+                  </span>
+                  <ArrowRight className="w-4 h-4 text-zinc-500" />
+                </Button>
+              ) : (
+                <div className="text-center space-y-2">
+                  <div className="text-zinc-400 text-sm">{t('login.walletconnected')}</div>
+                  <Button variant="outline" className="w-full font-mono" onClick={() => disconnect()}>
+                    {address ? `${address.slice(0, 6)}...${address.slice(-4)}` : t('login.walletconnected')}
+                  </Button>
+                </div>
+              )}
             </div>
             
             <div className="relative flex py-2 items-center">

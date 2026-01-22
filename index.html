@@ -17,6 +17,15 @@
       };
     </script>
     <script>
+      (function () {
+        const { hash, search, origin } = window.location;
+        if (hash.startsWith('#/login') && search && !hash.includes('?')) {
+          const hashPath = hash.replace(/^#/, '');
+          window.location.replace(`${origin}/#${hashPath}${search}`);
+        }
+      })();
+    </script>
+    <script>
       tailwind.config = {
         darkMode: 'class',
         theme: {
@@ -68,7 +77,6 @@
     "wagmi/chains": "https://esm.sh/wagmi@2.5.11/chains",
     "wagmi/connectors": "https://esm.sh/wagmi@2.5.11/connectors",
     "@tanstack/react-query": "https://esm.sh/@tanstack/react-query@5.28.4",
-    "@rainbow-me/rainbowkit": "https://esm.sh/@rainbow-me/rainbowkit@2.0.2?deps=react@18.2.0,react-dom@18.2.0,viem@2.8.14,wagmi@2.5.11,@tanstack/react-query@5.28.4",
     "react/": "https://esm.sh/react@^19.2.3/",
     "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
     "wagmi/": "https://esm.sh/wagmi@^3.3.2/"

@@ -7,7 +7,6 @@ import { Dashboard } from './pages/Dashboard.tsx';
 import { DomainList, DomainDetail } from './pages/DomainManager.tsx';
 import { SiteList, SiteDetail, NewSite } from './pages/SiteManager.tsx';
 import { Billing } from './pages/Billing.tsx';
-import { Settings } from './pages/Settings.tsx';
 import { OrderNew } from './pages/OrderNew.tsx';
 import { OrderDetail } from './pages/OrderDetail.tsx';
 import { Orders } from './pages/Orders.tsx';
@@ -16,11 +15,10 @@ import { useI18n } from './i18n.tsx';
 import { User } from './types.ts';
 import { api } from './api.ts';
 
-// RainbowKit & Wagmi imports
-import '@rainbow-me/rainbowkit/styles.css';
-import { getDefaultConfig, RainbowKitProvider, darkTheme } from '@rainbow-me/rainbowkit';
-import { WagmiProvider } from 'wagmi';
+// Wagmi imports
+import { WagmiProvider, createConfig } from 'wagmi';
 import { mainnet, polygon, optimism, arbitrum, bsc } from 'wagmi/chains';
+import { injected } from 'wagmi/connectors';
 import { http } from 'viem';
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
 
@@ -30,11 +28,10 @@ const transports = supportedChains.reduce<Record<number, ReturnType<typeof http>
   return acc;
 }, {});
 
-const config = getDefaultConfig({
-  appName: 'LastPush',
-  projectId: '93e171735160a370b02444690462f48f',
+const config = createConfig({
   chains: supportedChains,
   transports,
+  connectors: [injected()],
   ssr: false,
 });
 
@@ -124,50 +121,53 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
 const App: React.FC = () => {
   useEffect(() => {
-    if (window.location.hash) return;
     if (window.location.pathname === '/login' && window.location.search) {
       window.location.hash = `/login${window.location.search}`;
+      return;
+    }
+    if (window.location.hash.startsWith('#/login') && window.location.search) {
+      const hashPath = window.location.hash.replace(/^#/, '');
+      if (!hashPath.includes('?')) {
+        window.location.replace(`${window.location.origin}/#${hashPath}${window.location.search}`);
+      }
     }
   }, []);
 
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider theme={darkTheme()}>
-          <AuthProvider>
-            <I18nProvider>
-              <Router>
-                <Layout>
-                  <Routes>
-                  {/* Public Routes */}
-                  <Route path="/" element={<Home />} />
-                  <Route path="/login" element={<Login />} />
-                  
-                  {/* Protected Routes */}
-                  <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-                  
-                  <Route path="/domains" element={<ProtectedRoute><DomainList /></ProtectedRoute>} />
-                  <Route path="/domains/search" element={<Navigate to="/" />} />
-                  <Route path="/domains/:name" element={<ProtectedRoute><DomainDetail /></ProtectedRoute>} />
-                  
-                  <Route path="/sites" element={<ProtectedRoute><SiteList /></ProtectedRoute>} />
-                  <Route path="/sites/new" element={<ProtectedRoute><NewSite /></ProtectedRoute>} />
-                  <Route path="/sites/:id" element={<ProtectedRoute><SiteDetail /></ProtectedRoute>} />
-                  
-                  <Route path="/billing" element={<ProtectedRoute><Billing /></ProtectedRoute>} />
-                  <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-                  <Route path="/orders/new" element={<ProtectedRoute><OrderNew /></ProtectedRoute>} />
-                  <Route path="/orders/:id" element={<ProtectedRoute><OrderDetail /></ProtectedRoute>} />
-                  <Route path="/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
-                  
-                  {/* Fallback */}
-                  <Route path="*" element={<Navigate to="/" />} />
-                  </Routes>
-                </Layout>
-              </Router>
-            </I18nProvider>
-          </AuthProvider>
-        </RainbowKitProvider>
+        <AuthProvider>
+          <I18nProvider>
+            <Router>
+              <Layout>
+                <Routes>
+                {/* Public Routes */}
+                <Route path="/" element={<Home />} />
+                <Route path="/login" element={<Login />} />
+                
+                {/* Protected Routes */}
+                <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+                
+                <Route path="/domains" element={<ProtectedRoute><DomainList /></ProtectedRoute>} />
+                <Route path="/domains/search" element={<Navigate to="/" />} />
+                <Route path="/domains/:name" element={<ProtectedRoute><DomainDetail /></ProtectedRoute>} />
+                
+                <Route path="/sites" element={<ProtectedRoute><SiteList /></ProtectedRoute>} />
+                <Route path="/sites/new" element={<ProtectedRoute><NewSite /></ProtectedRoute>} />
+                <Route path="/sites/:id" element={<ProtectedRoute><SiteDetail /></ProtectedRoute>} />
+                
+                <Route path="/billing" element={<ProtectedRoute><Billing /></ProtectedRoute>} />
+                <Route path="/orders/new" element={<ProtectedRoute><OrderNew /></ProtectedRoute>} />
+                <Route path="/orders/:id" element={<ProtectedRoute><OrderDetail /></ProtectedRoute>} />
+                <Route path="/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
+                
+                {/* Fallback */}
+                <Route path="*" element={<Navigate to="/" />} />
+                </Routes>
+              </Layout>
+            </Router>
+          </I18nProvider>
+        </AuthProvider>
       </QueryClientProvider>
     </WagmiProvider>
   );

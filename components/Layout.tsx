@@ -1,14 +1,14 @@
 ﻿import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
-  LayoutDashboard, Globe, Server, CreditCard, Settings,
+  LayoutDashboard, Globe, Server, CreditCard,
   LogOut, Plus, Search, Terminal, HelpCircle,
   Menu, X, ShoppingBag
 } from 'lucide-react';
 import { useAuth } from '../App.tsx';
 import { Button } from './ui/Common.tsx';
 import { useI18n } from '../i18n.tsx';
-import { ConnectButton } from '@rainbow-me/rainbowkit';
+import { WalletButton } from './WalletButton.tsx';
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, logout } = useAuth();
@@ -25,7 +25,6 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     { icon: ShoppingBag, label: t('nav.orders'), path: '/orders' },
     { icon: Server, label: t('nav.sites'), path: '/sites' },
     { icon: CreditCard, label: t('nav.billing'), path: '/billing' },
-    { icon: Settings, label: t('nav.settings'), path: '/settings' },
   ];
 
   if (!user) {
@@ -103,7 +102,12 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
         <div className="absolute bottom-4 left-4 right-4 space-y-2">
           <div className="rounded-lg border border-zinc-800 bg-zinc-900/60 p-2">
-            <ConnectButton />
+            <WalletButton
+              className="w-full"
+              size="sm"
+              connectLabel={t('layout.wallet.connect')}
+              disconnectLabel={t('layout.wallet.disconnect')}
+            />
           </div>
           <Link to="/support">
             <button className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-900 transition-colors">

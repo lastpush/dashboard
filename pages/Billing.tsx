@@ -77,7 +77,8 @@ export const Billing: React.FC = () => {
         if (prev <= 1) {
           clearInterval(timer);
           setConfirmingPaid(false);
-          navigate('/domains');
+          navigate('/billing', { replace: true });
+          window.location.reload();
           return 0;
         }
         return prev - 1;

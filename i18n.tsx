@@ -24,6 +24,8 @@ const translations: Record<Locale, Record<string, string>> = {
     'layout.loading': 'Loading...',
     'layout.user': 'User',
     'layout.language': 'Language',
+    'layout.wallet.connect': 'Connect Wallet',
+    'layout.wallet.disconnect': 'Disconnect',
 
     'home.title': 'Deploy frontend.',
     'home.title2': 'Manage domains.',
@@ -290,6 +292,8 @@ const translations: Record<Locale, Record<string, string>> = {
     'layout.loading': '加载中...',
     'layout.user': '用户',
     'layout.language': '语言',
+    'layout.wallet.connect': '连接钱包',
+    'layout.wallet.disconnect': '断开连接',
 
     'home.title': '部署前端。',
     'home.title2': '管理域名。',
@@ -556,6 +560,8 @@ const translations: Record<Locale, Record<string, string>> = {
     'layout.loading': '載入中...',
     'layout.user': '使用者',
     'layout.language': '語言',
+    'layout.wallet.connect': '連接錢包',
+    'layout.wallet.disconnect': '中斷連接',
 
     'home.title': '部署前端。',
     'home.title2': '管理網域。',
@@ -822,6 +828,8 @@ const translations: Record<Locale, Record<string, string>> = {
     'layout.loading': 'Загрузка...',
     'layout.user': 'Пользователь',
     'layout.language': 'Язык',
+    'layout.wallet.connect': 'Подключить кошелек',
+    'layout.wallet.disconnect': 'Отключить',
 
     'home.title': 'Разверните фронтенд.',
     'home.title2': 'Управляйте доменами.',
@@ -1088,6 +1096,8 @@ const translations: Record<Locale, Record<string, string>> = {
     'layout.loading': 'Chargement...',
     'layout.user': 'Utilisateur',
     'layout.language': 'Langue',
+    'layout.wallet.connect': 'Connecter le wallet',
+    'layout.wallet.disconnect': 'Déconnecter',
 
     'home.title': 'Déployez le frontend.',
     'home.title2': 'Gérez les domaines.',
